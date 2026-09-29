@@ -15,6 +15,8 @@ import {
   generateNames,
   type AttemptRecord,
 } from "@/server/name-generation/generate-names";
+import { saveReading, toFreeView } from "@/server/readings/repository";
+import { getKeyValueStore, StorageError } from "@/server/storage/kv";
 import type {
   FieldIssue,
   GenerateNameFailure,
@@ -27,6 +29,9 @@ import type { NameRequest } from "@/types/name";
  *
  * 요청: NameRequest (application/json) — 입력 폼의 제출 값
  * 응답: GenerateNameResponse — { ok: true, data, meta } | { ok: false, error, meta }
+ *
+ * 생성 결과 전체는 서버에 풀이(reading)로 저장하고, 응답에는 무료 미리보기(이름 1개)만 담는다.
+ * 나머지 이름·상세 분석은 결제 후 GET /api/readings/:id로 받는다.
  */
 
 // @google/genai는 Node.js 런타임에서 실행한다
@@ -46,6 +51,8 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const config = readGeminiConfig();
+    // 결과를 저장할 곳이 없으면 모델을 부르기 전에 멈춘다 (비용이 드는 호출을 낭비하지 않게)
+    getKeyValueStore();
     // 제한 시간은 본문을 읽기 전부터 잰다 — 느린 업로드도 같은 시간 안에서 끊는다
     const deadline = createTimeoutSignal(config.timeoutMs);
     disposeDeadline = deadline.dispose;
@@ -76,11 +83,15 @@ export async function POST(request: Request): Promise<Response> {
       },
     );
 
+    const reading = await saveReading({
+      englishName: nameRequest.englishName,
+      result: outcome.result,
+    });
+
     const body: GenerateNameSuccess = {
       ok: true,
-      // 프리미엄 분석(premium)은 결제·인증 연동 전까지 모든 응답에 포함한다.
-      // 연동 후에는 여기서 권한을 확인해 premium을 null로 바꿔 보내야 한다.
-      data: outcome.result,
+      // 무료 미리보기만 보낸다 — 프리미엄 데이터는 결제 확인 뒤 /api/readings/:id에서만 나간다
+      data: toFreeView(reading),
       meta: {
         requestId,
         model: outcome.model,
@@ -91,6 +102,7 @@ export async function POST(request: Request): Promise<Response> {
     };
     log("info", {
       requestId,
+      readingId: reading.id,
       status: 200,
       model: outcome.model,
       durationMs: body.meta.durationMs,
@@ -101,7 +113,14 @@ export async function POST(request: Request): Promise<Response> {
     const known =
       error instanceof NameGenerationError
         ? error
-        : new NameGenerationError("INTERNAL_ERROR", { cause: error });
+        : error instanceof StorageError
+          ? new NameGenerationError(
+              error.kind === "configuration"
+                ? "CONFIGURATION_ERROR"
+                : "INTERNAL_ERROR",
+              { detail: error.message, cause: error },
+            )
+          : new NameGenerationError("INTERNAL_ERROR", { cause: error });
     return failure(known, requestId, attempts);
   } finally {
     disposeDeadline();

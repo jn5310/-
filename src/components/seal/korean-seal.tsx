@@ -20,6 +20,8 @@ export interface KoreanSealProps extends UseKoreanSealOptions {
    * 입력창 옆에 이미 오류를 보여 준다면 false로 두어 같은 문구가 두 번 나오지 않게 한다.
    */
   showInputError?: boolean;
+  /** 그리기가 끝났을 때 미리보기 아래 문구. 기본 "Transparent PNG · 1024 × 1024px" */
+  readyMessage?: string;
   className?: string;
 }
 
@@ -31,6 +33,7 @@ export function KoreanSeal({
   name,
   showDownload = true,
   showInputError = true,
+  readyMessage,
   className,
   ...options
 }: KoreanSealProps) {
@@ -100,7 +103,7 @@ export function KoreanSeal({
         >
           {message ??
             (seal.status === "ready"
-              ? `Transparent PNG · ${size} × ${size}px`
+              ? (readyMessage ?? `Transparent PNG · ${size} × ${size}px`)
               : seal.status === "rendering"
                 ? "Carving your seal…"
                 : "")}

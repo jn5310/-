@@ -24,5 +24,9 @@ export const choiceIndicatorClass =
 export const primaryButtonClass =
   "inline-flex items-center justify-center gap-3 rounded-full bg-ink px-7 py-3.5 text-sm font-semibold tracking-wide text-hanji shadow-lg shadow-ink/15 transition hover:bg-vermilion focus-visible:ring-4 focus-visible:ring-vermilion/30 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-60";
 
+/** 결제(페이월) CTA — 인주색으로 화면에서 가장 눈에 띄게. 글자 대비 약 6:1 */
+export const ctaButtonClass =
+  "inline-flex items-center justify-center gap-3 rounded-full bg-vermilion px-7 py-4 text-base font-semibold tracking-wide text-hanji shadow-lg shadow-vermilion/25 transition hover:bg-vermilion-deep focus-visible:ring-4 focus-visible:ring-vermilion/30 focus-visible:outline-hidden disabled:cursor-wait disabled:opacity-70";
+
 export const secondaryButtonClass =
   "inline-flex items-center justify-center gap-2 rounded-full border border-ink/20 bg-white/50 px-7 py-3.5 text-sm font-semibold text-ink transition hover:border-ink/40 hover:bg-white focus-visible:ring-4 focus-visible:ring-ink/10 focus-visible:outline-hidden";

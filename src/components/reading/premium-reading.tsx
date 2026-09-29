@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { KoreanSeal } from "@/components/seal/korean-seal";
@@ -14,16 +15,16 @@ import { secondaryButtonClass } from "@/components/ui/styles";
 import { cn } from "@/lib/cn";
 import { FIVE_ELEMENT_META } from "@/lib/saju/five-elements";
 import { SEAL_SHAPES, type SealShape } from "@/lib/seal";
-import type { GeneratedName, GenerateNameResult } from "@/types/api";
-import type { NameRequest } from "@/types/name";
+import type { GeneratedName } from "@/types/api";
+import type { PremiumReadingView } from "@/types/reading";
 import type { FiveElement, SajuNote, SajuPillar } from "@/types/saju";
 
-interface NameResultsProps {
-  request: NameRequest;
-  result: GenerateNameResult;
-  onEdit: () => void;
-  onRegenerate: () => void;
-  isRegenerating: boolean;
+import { CertificateButton } from "./certificate-button";
+
+interface PremiumReadingProps {
+  view: PremiumReadingView;
+  /** 방금 결제를 마치고 열린 경우 — 감사 인사를 보여 주고 제목으로 포커스를 옮긴다 */
+  justUnlocked: boolean;
 }
 
 /** 전통 표기 순서: 오른쪽부터 연·월·일·시 — 화면에서는 왼쪽부터 시·일·월·연으로 놓는다 */
@@ -52,42 +53,52 @@ const SHAPE_LABELS: Record<SealShape, string> = {
   circle: "Round",
 };
 
-/** 이름 생성 결과: 사주 원국 요약 → 추천 이름 3개 → 고른 이름의 풀이와 도장 */
-export function NameResults({
-  request,
-  result,
-  onEdit,
-  onRegenerate,
-  isRegenerating,
-}: NameResultsProps) {
+/** 프리미엄 풀이: 사주 원국 → 추천 이름 3개 → 고른 이름의 풀이 · 도장 PNG · 증명서 PDF (광고 없음) */
+export function PremiumReading({ view, justUnlocked }: PremiumReadingProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [shape, setShape] = useState<SealShape>("square");
   const [fontId, setFontId] = useState<SealFontId>(DEFAULT_SEAL_FONT);
 
-  // 화면이 바뀌었음을 스크린리더 사용자에게도 알리도록 제목으로 포커스를 옮긴다
+  // 잠금이 풀리며 화면이 바뀌었음을 스크린리더 사용자에게도 알리도록 제목으로 포커스를 옮긴다
   useEffect(() => {
-    headingRef.current?.focus();
-  }, []);
+    if (justUnlocked) headingRef.current?.focus();
+  }, [justUnlocked]);
 
-  const { names, favorableElements, saju } = result;
+  const { names, favorableElements, saju } = view.result;
   const selected: GeneratedName | undefined = names[selectedIndex] ?? names[0];
 
   return (
-    <section
-      aria-labelledby="name-results-title"
-      className="flex flex-col gap-10"
-    >
+    <section aria-labelledby="reading-title" className="flex flex-col gap-10">
+      {justUnlocked ? (
+        <p
+          role="status"
+          className="flex items-center gap-3 rounded-2xl border border-wood/30 bg-wood/10 px-5 py-4 text-sm text-ink"
+        >
+          <span
+            aria-hidden="true"
+            lang="ko"
+            className="font-serif text-2xl text-wood"
+          >
+            福
+          </span>
+          <span>
+            <strong>Payment complete — thank you!</strong> Your full reading,
+            seal and certificate are unlocked.
+          </span>
+        </p>
+      ) : null}
+
       <div className="flex flex-col gap-3">
-        <Eyebrow hangul="추천 이름">Your names</Eyebrow>
-        <h3
-          id="name-results-title"
+        <Eyebrow hangul="프리미엄 풀이">Premium reading</Eyebrow>
+        <h1
+          id="reading-title"
           ref={headingRef}
           tabIndex={-1}
-          className="font-serif text-2xl font-semibold text-ink outline-hidden sm:text-3xl"
+          className="font-serif text-3xl font-semibold tracking-tight text-ink outline-hidden sm:text-4xl"
         >
-          Three Korean names for {request.englishName}
-        </h3>
+          Three Korean names for {view.englishName}
+        </h1>
         <p className="max-w-2xl text-ink-soft">
           Each name balances your chart with{" "}
           {favorableElements.map((element, index) => (
@@ -99,7 +110,8 @@ export function NameResults({
               <span lang="ko">({FIVE_ELEMENT_META[element].hanja})</span>
             </span>
           ))}
-          . Pick one to see its meaning and carve it as a seal.
+          . Pick one to see its full reading, carve it as a seal and download
+          your certificate.
         </p>
       </div>
 
@@ -178,6 +190,16 @@ export function NameResults({
 
           <div className="flex flex-col items-center gap-4 lg:w-80">
             <KoreanSeal name={selected.hangul} shape={shape} font={fontId} />
+            <CertificateButton
+              readingId={view.readingId}
+              englishName={view.englishName}
+              name={selected}
+              favorableElements={favorableElements}
+              dayMaster={saju.dayMaster}
+              issuedAt={view.unlockedAt}
+              sealShape={shape}
+              sealFont={SEAL_FONTS[fontId].font}
+            />
             <div
               className="flex flex-wrap justify-center gap-2"
               role="group"
@@ -215,22 +237,13 @@ export function NameResults({
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-3 sm:flex-row">
-        <button type="button" onClick={onEdit} className={secondaryButtonClass}>
-          <span aria-hidden="true">←</span> Edit details
-        </button>
-        <button
-          type="button"
-          onClick={onRegenerate}
-          disabled={isRegenerating}
-          aria-busy={isRegenerating || undefined}
-          className={cn(
-            secondaryButtonClass,
-            "disabled:cursor-wait disabled:opacity-60",
-          )}
-        >
-          {isRegenerating ? "Creating new names…" : "Suggest three more"}
-        </button>
+      <div className="flex flex-col gap-3 border-t border-ink/10 pt-8 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-ink-muted">
+          Bookmark this page — your reading stays here for at least a year.
+        </p>
+        <Link href="/#studio" className={secondaryButtonClass}>
+          Create another name
+        </Link>
       </div>
     </section>
   );

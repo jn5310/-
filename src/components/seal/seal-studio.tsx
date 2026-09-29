@@ -175,13 +175,24 @@ export function SealStudio() {
         </FieldGroup>
       </div>
 
-      <KoreanSeal
-        name={name}
-        shape={shape}
-        font={fontId}
-        showInputError={false}
-        className="lg:w-80"
-      />
+      <div className="flex flex-col items-center gap-4 lg:w-80">
+        {/* PNG 다운로드는 프리미엄 혜택이다 — 여기서는 미리보기만 한다 */}
+        <KoreanSeal
+          name={name}
+          shape={shape}
+          font={fontId}
+          showInputError={false}
+          showDownload={false}
+          readyMessage="Preview · the PNG download comes with Premium"
+          className="w-full"
+        />
+        <a
+          href="#studio"
+          className="text-center text-sm font-semibold text-vermilion underline-offset-4 hover:underline"
+        >
+          Get your own Korean name and seal →
+        </a>
+      </div>
     </div>
   );
 }

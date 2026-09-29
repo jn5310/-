@@ -1,8 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   FormProvider,
   useForm,
@@ -12,12 +13,9 @@ import {
 } from "react-hook-form";
 
 import { primaryButtonClass } from "@/components/ui/styles";
-import {
-  requestGeneratedNames,
-  toFormFieldPath,
-} from "@/lib/api/generate-name";
+import { requestGeneratedNames, toFormFieldPath } from "@/lib/api/client";
 import { nameFormSchema } from "@/lib/validations/name-form";
-import type { GenerateNameFailure, GenerateNameResult } from "@/types/api";
+import type { ApiFailure } from "@/types/api";
 import {
   DEFAULT_NAME_LENGTH,
   type NameFormValues,
@@ -28,7 +26,6 @@ import { BirthFields } from "./birth-fields";
 import { EnglishNameField } from "./english-name-field";
 import { GenderField } from "./gender-field";
 import { NameLengthField } from "./name-length-field";
-import { NameResults } from "./name-results";
 import { SurnameField } from "./surname-field";
 
 /**
@@ -55,17 +52,12 @@ const FORM_FIELD_PATHS = new Set<string>([
   "nameLength",
 ]);
 
-interface Generated {
-  request: NameRequest;
-  result: GenerateNameResult;
-}
-
-type ServerError = GenerateNameFailure["error"];
+type ServerError = ApiFailure["error"];
 
 export function NameForm() {
-  const [generated, setGenerated] = useState<Generated | null>(null);
+  const router = useRouter();
   const [serverError, setServerError] = useState<ServerError | null>(null);
-  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [isNavigating, startNavigation] = useTransition();
   const inFlight = useRef<AbortController | null>(null);
 
   // 입력값(NameFormValues) → zod 검증·변환 → handleSubmit에는 NameRequest가 전달된다
@@ -81,36 +73,32 @@ export function NameForm() {
     return () => pending.current?.abort();
   }, []);
 
-  /** API를 호출한다. 성공하면 결과를, 실패하면 오류를 돌려준다 (취소되면 null) */
-  const generate = async (
-    request: NameRequest,
-  ): Promise<GenerateNameResult | ServerError | null> => {
+  const onValidSubmit: SubmitHandler<NameRequest> = async (request) => {
+    setServerError(null);
     inFlight.current?.abort();
     const controller = new AbortController();
     inFlight.current = controller;
+
+    let response: Awaited<ReturnType<typeof requestGeneratedNames>>;
     try {
-      const response = await requestGeneratedNames(request, controller.signal);
-      if (controller.signal.aborted) return null;
-      return response.ok ? response.data : response.error;
+      response = await requestGeneratedNames(request, controller.signal);
     } catch {
-      return null; // 사용자가 취소함
+      return; // 취소됨
     } finally {
       if (inFlight.current === controller) inFlight.current = null;
     }
-  };
 
-  const onValidSubmit: SubmitHandler<NameRequest> = async (request) => {
-    setServerError(null);
-    const outcome = await generate(request);
-    if (!outcome) return;
-
-    if ("names" in outcome) {
-      setGenerated({ request, result: outcome });
+    if (response.ok) {
+      // 결과는 서버에 저장돼 있다 — 새로고침·공유·결제 복귀에 모두 쓰이는 풀이 페이지로 옮긴다
+      const { readingId } = response.data;
+      startNavigation(() => {
+        router.push(`/reading/${readingId}`);
+      });
       return;
     }
 
     // 서버 재검증 오류는 해당 입력 필드 옆에 붙인다
-    const fieldErrors = (outcome.fieldErrors ?? [])
+    const fieldErrors = (response.error.fieldErrors ?? [])
       .map((issue) => ({ ...issue, path: toFormFieldPath(issue.path) }))
       .filter((issue) => FORM_FIELD_PATHS.has(issue.path));
     fieldErrors.forEach((issue, index) => {
@@ -120,58 +108,16 @@ export function NameForm() {
         { shouldFocus: index === 0 },
       );
     });
-    setServerError(outcome);
+    setServerError(response.error);
   };
 
-  const handleRegenerate = async () => {
-    if (!generated) return;
-    setServerError(null);
-    setIsRegenerating(true);
-    const outcome = await generate(generated.request);
-    setIsRegenerating(false);
-    if (!outcome) return;
-    if ("names" in outcome) {
-      setGenerated({ request: generated.request, result: outcome });
-    } else {
-      setServerError(outcome);
-    }
-  };
-
-  const handleEdit = () => {
-    inFlight.current?.abort();
-    // 폼을 즉시 다시 그린 뒤 첫 필드로 포커스를 돌려준다 (누른 버튼이 사라져 포커스가 body로 빠지지 않게)
-    flushSync(() => {
-      setGenerated(null);
-      setServerError(null);
-      setIsRegenerating(false);
-    });
-    methods.setFocus("englishName");
-  };
-
-  if (generated) {
-    return (
-      <div className="flex flex-col gap-6">
-        {serverError ? <ServerErrorBanner error={serverError} /> : null}
-        <NameResults
-          // 새 결과가 오면 선택·도장 설정을 처음 상태로 되돌린다
-          key={generated.result.names.map((name) => name.hangul).join("|")}
-          request={generated.request}
-          result={generated.result}
-          onEdit={handleEdit}
-          onRegenerate={handleRegenerate}
-          isRegenerating={isRegenerating}
-        />
-      </div>
-    );
-  }
-
-  const { isSubmitting } = methods.formState;
+  const isBusy = methods.formState.isSubmitting || isNavigating;
 
   return (
     <FormProvider {...methods}>
       <form
         noValidate
-        aria-busy={isSubmitting || undefined}
+        aria-busy={isBusy || undefined}
         onSubmit={methods.handleSubmit(onValidSubmit)}
         className="flex flex-col divide-y divide-ink/10"
       >
@@ -196,22 +142,33 @@ export function NameForm() {
               aria-live="polite"
               className="max-w-sm text-sm leading-relaxed text-ink-muted"
             >
-              {isSubmitting
-                ? "Reading your chart and choosing Hanja — this can take up to a minute."
-                : "Your birth details are used only to calculate your Saju chart."}
+              {isBusy ? (
+                "Reading your chart and choosing Hanja — this can take up to a minute."
+              ) : (
+                <>
+                  Your details are used only to create your reading — see our{" "}
+                  <Link
+                    href="/privacy"
+                    className="font-medium text-ink-soft underline underline-offset-4 hover:text-vermilion"
+                  >
+                    Privacy Policy
+                  </Link>
+                  .
+                </>
+              )}
             </p>
             <button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isBusy}
               className={primaryButtonClass}
             >
-              {isSubmitting ? "Creating your names…" : "Create my Korean name"}
+              {isBusy ? "Creating your names…" : "Create my Korean name"}
               <span
                 aria-hidden="true"
                 lang="ko"
                 className="font-serif font-normal text-hanji/60"
               >
-                {isSubmitting ? "작명 중" : "이름 짓기"}
+                {isBusy ? "작명 중" : "이름 짓기"}
               </span>
             </button>
           </div>

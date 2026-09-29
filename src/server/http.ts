@@ -21,6 +21,22 @@ export async function readJsonBody(
     throw new NameGenerationError("UNSUPPORTED_MEDIA_TYPE");
   }
 
+  const bytes = await readBodyBytes(request, maxBytes, signal);
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch (error) {
+    throw new NameGenerationError("INVALID_JSON", { cause: error });
+  }
+}
+
+/**
+ * 요청 본문을 바이트 그대로 읽는다 (크기 제한). 웹훅 서명 검증처럼 원문이 한 바이트도 바뀌면 안 될 때 쓴다.
+ */
+export async function readBodyBytes(
+  request: Request,
+  maxBytes: number,
+  signal?: AbortSignal,
+): Promise<Uint8Array> {
   const declared = Number(request.headers.get("content-length") ?? "0");
   if (declared > maxBytes) throw new NameGenerationError("PAYLOAD_TOO_LARGE");
   if (!request.body) {
@@ -62,12 +78,7 @@ export async function readJsonBody(
     bytes.set(chunk, offset);
     offset += chunk.byteLength;
   }
-
-  try {
-    return JSON.parse(new TextDecoder().decode(bytes));
-  } catch (error) {
-    throw new NameGenerationError("INVALID_JSON", { cause: error });
-  }
+  return bytes;
 }
 
 export function jsonResponse(
