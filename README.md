@@ -1,8 +1,12 @@
 # K-Name Studio
 
 한국 문화·K-pop·한국어에 관심 있는 외국인을 위한 **사주(四柱) 기반 한국 이름 추천** 서비스입니다.
-입력 폼 → Gemini 이름 생성 → 무료 미리보기(이름 1개) → **$3.99 프리미엄**(이름 3개·상세 풀이·도장 PNG·공식 이름 증명서 PDF)으로 이어집니다.
-무료 화면은 Google AdSense 광고로, 프리미엄은 광고 없이 운영하는 하이브리드 수익 모델입니다.
+입력 폼 → Gemini 이름 생성 → 이름 3개·사주/한자 상세 풀이·도장 PNG·공식 이름 증명서 PDF로 이어집니다.
+
+> **현재 무료 전면 개방 중입니다.** 초기 트래픽 확보를 위해 결제(페이월)를 꺼 두어, 모든 기능을 결제 없이 바로 보여 주고 Stripe 결제 버튼은 나오지 않습니다.
+> `NEXT_PUBLIC_PAYWALL_ENABLED=true`를 넣고 다시 배포하면 무료 미리보기(이름 1개) → **$3.99 프리미엄** 흐름이 돌아옵니다. 무료 기간에 만든 풀이는 그 뒤에도 열려 있습니다.
+
+수익 모델은 Google AdSense 광고(선택)와, 페이월을 켰을 때의 광고 없는 프리미엄 일시불 결제입니다.
 UI 문구는 영어이고, 한글·한자를 함께 적어 한국적인 분위기를 살렸습니다.
 
 **Vercel 운영 배포 · 환경 변수 · GA4 설정 · 매각(Flippa) 준비는 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)를 보세요.**
@@ -29,7 +33,7 @@ UI 문구는 영어이고, 한글·한자를 함께 적어 한국적인 분위�
 ```bash
 npm install        # Node.js 20.9 이상
 cp .env.example .env.local   # Windows cmd: copy .env.example .env.local
-                             # GEMINI_API_KEY · STRIPE_SECRET_KEY(sk_test_…) 입력
+                             # GEMINI_API_KEY 입력 (결제를 켤 때만 STRIPE_SECRET_KEY)
 npm run dev        # http://localhost:3000
 npm run build      # 프로덕션 빌드
 npm run lint       # ESLint (eslint-config-next)
@@ -39,6 +43,8 @@ npm run typecheck  # 라우트 타입 생성 후 tsc --noEmit
 > `package-lock.json`은 첫 `npm install` 때 생성됩니다. 로컬 풀이 데이터는 `.data/kv`에 저장됩니다(커밋되지 않음).
 
 ### 결제 테스트 (Stripe 테스트 모드)
+
+> 페이월을 켰을 때만 해당합니다 — `.env.local`에 `NEXT_PUBLIC_PAYWALL_ENABLED=true`를 넣고 dev 서버를 다시 켭니다.
 
 1. [Stripe 대시보드](https://dashboard.stripe.com/test/apikeys)의 테스트 비밀 키(`sk_test_…`)를 `STRIPE_SECRET_KEY`에 넣고 `npm run dev`를 다시 켭니다.
 2. 이름을 만든 뒤 무료 미리보기에서 **Unlock everything — $3.99**를 누르고, 테스트 카드 `4242 4242 4242 4242`(만료일은 미래 아무 날짜, CVC 아무 3자리)로 결제합니다.
@@ -176,7 +182,8 @@ docs/DEPLOYMENT.md            # Vercel 배포 체크리스트 · 환경 변수 �
 
 ## 화면 흐름
 
-1. **입력**: 폼을 제출하면 `POST /api/generate-name`이 이름 3개와 상세 분석을 만들어 서버에 **풀이(reading)** 로 저장하고, 무료 미리보기만 돌려줍니다(보통 10–30초, 최대 약 1분).
+1. **입력**: 폼을 제출하면 `POST /api/generate-name`이 이름 3개와 상세 분석을 만들어 서버에 **풀이(reading)** 로 저장합니다(보통 10–30초, 최대 약 1분).
+   - **무료 개방(현재)**: 전체 풀이를 바로 돌려주고 `/reading/[id]`에서 5단계 화면을 보여 줍니다. 아래 2–4단계(미리보기·결제·복귀)는 페이월을 켰을 때만 있습니다.
 2. **무료 미리보기** (`/reading/[id]`): 이름 1개의 한글·영문 발음·한 줄 의미를 보여 줍니다. 나머지 이름 2개, 사주·한자 풀이, 도장·증서는 흐리게 잠겨 있고 결제 카드가 붙습니다. 이 화면과 랜딩 하단에만 광고가 나옵니다.
 3. **결제**: 결제 버튼 → `POST /api/checkout` → Stripe Checkout(호스팅 결제 페이지)에서 $3.99를 결제합니다.
 4. **복귀**: Stripe가 `/reading/[id]?checkout=success&session_id=…`로 돌려보냅니다. 서버가 세션을 Stripe에서 확인해 바로 엽니다. 아직 확정 전이면(지연 결제 수단·일시 오류) 화면이 최대 1분 동안 다시 조회하고, 웹훅이 도착하면 열립니다. 취소하면 `?checkout=cancelled`로 돌아와 안내만 보여 줍니다.
@@ -185,6 +192,8 @@ docs/DEPLOYMENT.md            # Vercel 배포 체크리스트 · 환경 변수 �
 서버 재검증 오류(`VALIDATION_ERROR`)는 해당 입력 필드 옆에 붙이고, 그 밖의 오류는 폼 아래 안내 문구로 보여 줍니다.
 
 ## 수익화 — 프리미엄 결제 + 광고
+
+> 결제는 `NEXT_PUBLIC_PAYWALL_ENABLED`로 켜고 끕니다(`src/lib/monetization.ts`, 기본 꺼짐). 꺼져 있으면 서버가 전체 풀이를 주고, `POST /api/checkout`은 Stripe를 부르지 않고 `PAYMENTS_DISABLED`(404)를 돌려줍니다. 랜딩의 도장 체험도 PNG를 바로 내려받을 수 있습니다. 이용약관·개인정보처리방침·공유 이미지·JSON-LD의 가격 문구도 함께 바뀝니다.
 
 | 구분                | 무료                                 | 프리미엄 ($3.99 일시불)                               |
 | ------------------- | ------------------------------------ | ----------------------------------------------------- |
@@ -351,7 +360,8 @@ await downloadKoreanSeal("김서윤", { font: SEAL_FONTS.classic.font });
 
 | 변수                                                                                                      | 필수     | 설명                                                           |
 | --------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------- |
-| `STRIPE_SECRET_KEY`                                                                                       | ✓ (결제) | `sk_test_…` / `sk_live_…`                                      |
+| `NEXT_PUBLIC_PAYWALL_ENABLED`                                                                             |          | `true`면 $3.99 결제를 켠다 (기본 꺼짐 = 무료 개방)             |
+| `STRIPE_SECRET_KEY`                                                                                       | 결제 시  | `sk_test_…` / `sk_live_…`                                      |
 | `STRIPE_WEBHOOK_SECRET`                                                                                   | ✓ (웹훅) | `whsec_…` — 로컬은 `stripe listen`, 운영은 대시보드 엔드포인트 |
 | `STRIPE_PRODUCT_ID` · `APP_URL`                                                                           |          | 대시보드 상품 ID · 결제 후 돌아올 사이트 주소(운영 필수)       |
 | `UPSTASH_REDIS_REST_URL` · `UPSTASH_REDIS_REST_TOKEN`                                                     | 서버리스 | 풀이 저장소 (없으면 `.data/kv` 파일)                           |
@@ -376,7 +386,7 @@ curl -X POST http://localhost:3000/api/generate-name \
        "nameLength":3}'
 ```
 
-응답은 **무료 미리보기**입니다. 전체 결과는 서버에 저장되고, 결제 후 `GET /api/readings/:id`로만 나갑니다.
+무료 개방 중(기본)에는 응답에 **전체 풀이**(`tier: "premium"`, `access: "open"`)가 담깁니다. 페이월을 켜면 **무료 미리보기**만 담기고, 전체 결과는 결제 후 `GET /api/readings/:id`로만 나갑니다.
 
 ```jsonc
 {
@@ -442,13 +452,13 @@ curl -X POST http://localhost:3000/api/generate-name \
 
 ### 풀이 조회 · 결제 API
 
-| API                                       | 요청                                                   | 응답 · 주요 오류                                                                                                                          |
-| ----------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/readings/:id[?session_id=cs_…]` | —                                                      | `ReadingView` (무료/프리미엄). `session_id`가 있으면 결제를 확인해 연다 · `READING_NOT_FOUND` 404                                         |
-| `POST /api/checkout`                      | `{ "readingId": "…" }`                                 | `{ url }` (Stripe 결제 페이지) · `READING_NOT_FOUND` 404 · `ALREADY_UNLOCKED` 409 · `PAYMENT_UNAVAILABLE` 503 · `CONFIGURATION_ERROR` 500 |
-| `POST /api/stripe-webhook`                | Stripe 이벤트 (서명 필수)                              | 200 `{ received: true }` · 서명 오류 400 · 처리 실패 500(Stripe가 재전송)                                                                 |
-| `POST /api/metrics/collect`               | `{ path, entry?, referrer?, utmSource? }` (text/plain) | 항상 204 — 같은 사이트 요청만 세고 봇·미리 불러오기는 무시                                                                                |
-| `GET /api/admin/metrics`                  | `Authorization: Bearer <METRICS_ADMIN_TOKEN>`          | `type=summary·daily·monthly·payments` · `format=json·csv` · `from`/`to` — 토큰 없음 401 · 미설정 404                                      |
+| API                                       | 요청                                                   | 응답 · 주요 오류                                                                                                                                                                  |
+| ----------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/readings/:id[?session_id=cs_…]` | —                                                      | `ReadingView` (무료/프리미엄). `session_id`가 있으면 결제를 확인해 연다 · `READING_NOT_FOUND` 404                                                                                 |
+| `POST /api/checkout`                      | `{ "readingId": "…" }`                                 | `{ url }` (Stripe 결제 페이지) · `PAYMENTS_DISABLED` 404(무료 개방 중) · `READING_NOT_FOUND` 404 · `ALREADY_UNLOCKED` 409 · `PAYMENT_UNAVAILABLE` 503 · `CONFIGURATION_ERROR` 500 |
+| `POST /api/stripe-webhook`                | Stripe 이벤트 (서명 필수)                              | 200 `{ received: true }` · 서명 오류 400 · 처리 실패 500(Stripe가 재전송)                                                                                                         |
+| `POST /api/metrics/collect`               | `{ path, entry?, referrer?, utmSource? }` (text/plain) | 항상 204 — 같은 사이트 요청만 세고 봇·미리 불러오기는 무시                                                                                                                        |
+| `GET /api/admin/metrics`                  | `Authorization: Bearer <METRICS_ADMIN_TOKEN>`          | `type=summary·daily·monthly·payments` · `format=json·csv` · `from`/`to` — 토큰 없음 401 · 미설정 404                                                                              |
 
 ### 처리 흐름
 

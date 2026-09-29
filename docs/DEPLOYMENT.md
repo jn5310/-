@@ -11,7 +11,7 @@ Vercel 운영 배포부터 GA4 전환 추적, 매각 실사용 지표(Flippa)까
 - [ ] (선택) **Supabase**에 지표 표를 만든다 — SQL로 조회·내보내기가 쉬워 실사 자료로 가장 설득력이 있다
 - [ ] 환경 변수를 Production · Preview · Development로 나눠 넣는다 ([2장](#2-환경-변수))
 - [ ] 도메인을 연결하고 `APP_URL`을 지정한다
-- [ ] Stripe 실결제 키와 웹훅을 설정한다
+- [ ] (지금은 건너뜀) Stripe 실결제 키와 웹훅 — 무료 개방 중에는 필요 없다. 유료로 바꿀 때 [5장](#5-stripe-실결제-전환)
 - [ ] Search Console · Bing 소유권을 확인하고 sitemap을 제출한다
 - [ ] GA4 속성을 만들고 **향상된 측정의 '브라우저 기록 기반 페이지 변경'을 끈다** ([6장](#6-google-analytics-4))
 - [ ] 배포 후 점검 목록을 확인한다 ([8장](#8-배포-후-점검))
@@ -45,7 +45,8 @@ Vercel › Project › Settings › **Environment Variables**에서 환경별로
 | --------------------------------------- | ------------------------- | ---------------- | ---------------------- | ---------------------------------------------------------------- |
 | `GEMINI_API_KEY`                        | ✓                         | ✓                | ✓                      | Gemini API 키                                                    |
 | `GEMINI_MODEL`                          | 권장                      | 권장             |                        | 버전 고정 (예: `gemini-3.5-flash`). 비우면 `gemini-flash-latest` |
-| `STRIPE_SECRET_KEY`                     | `sk_live_…`               | `sk_test_…`      | `sk_test_…`            | Preview에는 절대 실결제 키를 넣지 않는다                         |
+| `NEXT_PUBLIC_PAYWALL_ENABLED`           | 비움 (무료 개방)          | 비움             | 비움                   | `true`면 $3.99 결제를 켠다. 켜면 아래 Stripe 값이 필요하다       |
+| `STRIPE_SECRET_KEY`                     | `sk_live_…`               | `sk_test_…`      | `sk_test_…`            | **페이월을 켤 때만.** Preview에는 실결제 키 금지                 |
 | `STRIPE_WEBHOOK_SECRET`                 | 운영 엔드포인트 `whsec_…` | (선택)           | `stripe listen` 출력값 | 결제 복귀 확인만으로도 열리므로 Preview는 비워도 된다            |
 | `STRIPE_PRODUCT_ID`                     | 권장                      |                  |                        | 매출이 상품 하나로 모여 실사 때 보기 쉽다                        |
 | `APP_URL`                               | `https://도메인`          | 비움             | 비움                   | 결제 복귀 주소 · canonical · sitemap · OG가 모두 이 값을 쓴다    |
@@ -94,7 +95,7 @@ copy .env.example .env.local
 notepad .env.local
 ```
 
-최소 설정은 `GEMINI_API_KEY`와 `STRIPE_SECRET_KEY=sk_test_…` 두 개입니다. 나머지는 비워 두면 로컬 기본값(파일 저장소·GA 없음·광고 자리 표시)으로 동작합니다. 값을 바꾸면 `npm run dev`를 껐다가 다시 켭니다.
+최소 설정은 `GEMINI_API_KEY` 하나입니다(무료 개방 중에는 Stripe 키가 필요 없습니다. 결제를 켜서 시험하려면 `NEXT_PUBLIC_PAYWALL_ENABLED=true`와 `STRIPE_SECRET_KEY=sk_test_…`를 넣습니다). 나머지는 비워 두면 로컬 기본값(파일 저장소·GA 없음·광고 자리 표시)으로 동작합니다. 값을 바꾸면 `npm run dev`를 껐다가 다시 켭니다.
 
 ## 4. Vercel 배포
 
@@ -107,6 +108,8 @@ notepad .env.local
 5. **Settings › Domains** 에서 도메인을 연결합니다. `www`와 맨 도메인 중 하나를 대표로 두고 나머지는 리디렉션합니다. 대표 주소를 `APP_URL`에 넣고 다시 배포합니다.
 
 ## 5. Stripe 실결제 전환
+
+> **지금은 무료 개방 중이라 이 장을 건너뜁니다.** 유료로 바꿀 때 아래를 마친 뒤 Production에 `NEXT_PUBLIC_PAYWALL_ENABLED=true`를 넣고 다시 배포합니다. 무료 기간에 만든 풀이는 계속 열려 있고, 그 뒤 새로 만든 풀이부터 무료 미리보기 + $3.99 결제가 적용됩니다.
 
 1. 계정 활성화(사업자 정보·정산 계좌)를 마칩니다.
 2. 운영 비밀 키 `sk_live_…`를 Production의 `STRIPE_SECRET_KEY`에 넣습니다.
@@ -123,7 +126,7 @@ notepad .env.local
    앱이 풀이 주소를 `/reading/[id]`로 바꾼 page_view를 직접 보냅니다. 이 옵션을 켜 두면 실제 풀이 주소(= 열람 권한)가 GA에 쌓여, GA 권한을 받은 사람(예: 매수 후보)이 남의 유료 풀이를 열 수 있습니다.
 3. **데이터 보관** (Data retention)을 **14개월**로 늘립니다. 기본 2개월이면 탐색 보고서에서 6개월 추이를 볼 수 없습니다.
 4. **Measurement Protocol API 비밀**(데이터 스트림 › Measurement Protocol API secrets › 만들기)을 `GA4_API_SECRET`에 넣습니다. 결제 완료는 서버(Stripe 웹훅)가 보내므로 광고 차단기·결제 후 탭 닫기로 빠지지 않고, 브라우저는 purchase를 보내지 않아 두 번 세지 않습니다.
-5. **키 이벤트**(관리 › 이벤트): `generate_lead` · `begin_checkout` · `purchase`를 키 이벤트로 표시합니다.
+5. **키 이벤트**(관리 › 이벤트): 무료 개방 중에는 `generate_lead` · `seal_download` · `certificate_download`를, 결제를 켠 뒤에는 `begin_checkout` · `purchase`도 키 이벤트로 표시합니다.
 6. **맞춤 측정기준**(관리 › 맞춤 정의, 이벤트 범위): `placement` · `lead_source` · `error_code` · `surname_source` · `name_length` · `birth_time_known` · `renderer` · `shape`.
 7. **내부 트래픽 제외**: 데이터 스트림 › 태그 설정 › 내부 트래픽 정의에 운영자 IP를 넣고, 데이터 필터를 '활성'으로 바꿉니다.
 8. **Search Console 연결**(관리 › 제품 링크)로 검색어 보고서를 GA에서 봅니다.
@@ -233,7 +236,8 @@ CSV는 엑셀에서 바로 열립니다. 수식으로 실행될 수 있는 값(`
 | [리치 결과 테스트](https://search.google.com/test/rich-results) · [Schema 검사기](https://validator.schema.org/)                           | Organization · WebSite · WebApplication 오류 없음 (평점이 없으니 별점 리치 결과는 나오지 않는 것이 정상 — 가짜 평점은 넣지 않는다)           |
 | [Facebook 공유 디버거](https://developers.facebook.com/tools/debug/) · [LinkedIn Post Inspector](https://www.linkedin.com/post-inspector/) | 제목·설명·이미지가 보임                                                                                                                      |
 | GA4 실시간 · DebugView                                                                                                                     | `page_view` → … → `purchase`, 풀이 주소는 `/reading/[id]`                                                                                    |
-| 실결제 $3.99 1건                                                                                                                           | Stripe 결제 성공 → 화면 즉시 열림 → GA4 `purchase` → `/api/admin/metrics`의 `payments: 1` → 대시보드에서 환불                                |
+| 무료 개방 확인                                                                                                                             | 이름을 만들면 결제 버튼 없이 이름 3개·한자·상세 풀이·도장 PNG·증명서 PDF가 바로 보이고, 랜딩 도장 체험에서도 PNG를 내려받을 수 있다          |
+| (결제를 켠 뒤) 실결제 $3.99 1건                                                                                                            | Stripe 결제 성공 → 화면 즉시 열림 → GA4 `purchase` → `/api/admin/metrics`의 `payments: 1` → 대시보드에서 환불                                |
 | `curl -i https://도메인/api/admin/metrics` (토큰 없이)                                                                                     | `401` (토큰 미설정이면 `404`)                                                                                                                |
 
 ## 9. Flippa 매각 준비
