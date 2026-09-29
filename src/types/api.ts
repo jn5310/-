@@ -1,12 +1,12 @@
 import type { NameRequest } from "./name";
-import type { FreeReadingView, ReadingView } from "./reading";
+import type { ReadingView } from "./reading";
 import type { FiveElement, SajuReading } from "./saju";
 
 /*
  * API 계약 — 프론트엔드와 API가 함께 쓰는 타입.
- * - POST /api/generate-name  이름 생성 → 무료 풀이(FreeReadingView)
- * - GET  /api/readings/:id   풀이 조회 (결제했으면 PremiumReadingView)
- * - POST /api/checkout       Stripe Checkout 결제 페이지 URL 발급
+ * - POST /api/generate-name  이름 생성 → 풀이 (페이월이 켜져 있으면 무료 미리보기, 꺼져 있으면 전체)
+ * - GET  /api/readings/:id   풀이 조회 (결제했거나 무료 개방이면 PremiumReadingView)
+ * - POST /api/checkout       Stripe Checkout 결제 페이지 URL 발급 (페이월이 꺼져 있으면 PAYMENTS_DISABLED)
  * - POST /api/stripe-webhook Stripe 전용 (결제 완료 → 프리미엄 잠금 해제)
  */
 
@@ -78,8 +78,11 @@ export interface GenerateNameResult {
 
 export interface GenerateNameSuccess {
   ok: true;
-  /** 새로 만든 풀이는 항상 무료 상태로 시작한다 — 전체 결과는 서버에 저장되고 결제 후 열린다 */
-  data: FreeReadingView;
+  /**
+   * 새로 만든 풀이. 페이월이 켜져 있으면 무료 미리보기(전체 결과는 서버에 저장되고 결제 후 열린다),
+   * 꺼져 있으면(무료 개방) 전체 풀이
+   */
+  data: ReadingView;
   meta: {
     requestId: string;
     /** 실제로 응답한 모델 버전 (예: gemini-3.5-flash) */
@@ -153,6 +156,8 @@ export type CheckoutErrorCode =
   | ReadingErrorCode
   /** 이미 결제한 풀이 — 중복 결제를 막는다 */
   | "ALREADY_UNLOCKED"
+  /** 페이월이 꺼져 있다(무료 개방) — 결제할 필요가 없다 */
+  | "PAYMENTS_DISABLED"
   /** Stripe API 오류·네트워크 문제 */
   | "PAYMENT_UNAVAILABLE";
 

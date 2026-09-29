@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomBytes } from "node:crypto";
 
+import { isPaywallEnabled, READING_RETENTION_DAYS } from "@/lib/monetization";
 import { PREMIUM_OFFER } from "@/lib/pricing";
 import { getKeyValueStore } from "@/server/storage/kv";
 import type { GenerateNameResult } from "@/types/api";
@@ -21,10 +22,11 @@ import type {
  */
 
 const DAY = 24 * 60 * 60;
-/** 결제하지 않은 풀이 보존 기간 */
-export const FREE_READING_TTL_SECONDS = 30 * DAY;
+/** 결제하지 않은 풀이 보존 기간 (무료 개방 기간에 만든 풀이 포함) */
+export const FREE_READING_TTL_SECONDS = READING_RETENTION_DAYS.standard * DAY;
 /** 결제한 풀이 보존 기간 — 증명서 PDF·도장 PNG를 받아 둘 수 있게 넉넉히 */
-export const PREMIUM_READING_TTL_SECONDS = 400 * DAY;
+export const PREMIUM_READING_TTL_SECONDS =
+  READING_RETENTION_DAYS.purchased * DAY;
 /** Checkout 세션은 최대 24시간 열려 있다 */
 const CHECKOUT_TTL_SECONDS = 2 * DAY;
 
@@ -62,6 +64,11 @@ export interface StoredReading {
   createdAt: string;
   englishName: string;
   result: GenerateNameResult;
+  /**
+   * 무료 개방 기간(페이월 꺼짐)에 만든 풀이 — 나중에 페이월을 다시 켜도 잠기지 않는다.
+   * 이용약관의 "무료 기간에 만든 풀이는 계속 열려 있다"는 약속을 지키기 위한 표시다.
+   */
+  openAccess?: true;
 }
 
 export interface Entitlement {
@@ -99,6 +106,7 @@ export async function saveReading(input: {
     createdAt: new Date().toISOString(),
     englishName: input.englishName,
     result: input.result,
+    ...(isPaywallEnabled() ? {} : { openAccess: true as const }),
   };
   await getKeyValueStore().set(
     readingKey(reading.id),
@@ -211,19 +219,45 @@ export function toPremiumView(
 ): PremiumReadingView {
   return {
     tier: "premium",
+    access: "purchased",
     readingId: reading.id,
     englishName: reading.englishName,
     createdAt: reading.createdAt,
     unlockedAt: entitlement.grantedAt,
+    // 권한을 줄 때 보존 기간을 결제 시각부터 다시 잰다 (grantPremium)
+    expiresAt: addSeconds(entitlement.grantedAt, PREMIUM_READING_TTL_SECONDS),
     result: reading.result,
   };
 }
 
+/** 무료 개방(페이월 꺼짐): 결제 없이 전체 풀이 — 이름 3개·한자·사주 상세 풀이·도장·증명서 */
+export function toOpenView(reading: StoredReading): PremiumReadingView {
+  return {
+    tier: "premium",
+    access: "open",
+    readingId: reading.id,
+    englishName: reading.englishName,
+    createdAt: reading.createdAt,
+    unlockedAt: reading.createdAt,
+    expiresAt: addSeconds(reading.createdAt, FREE_READING_TTL_SECONDS),
+    result: reading.result,
+  };
+}
+
+/**
+ * 권한에 맞는 뷰. 결제한 풀이는 늘 전체를 보여 준다.
+ * 결제하지 않은 풀이는 페이월이 꺼져 있거나(기본) 무료 개방 기간에 만든 풀이면 전체를,
+ * 그 밖에는 무료 미리보기를 보여 준다.
+ */
 export function toReadingView(
   reading: StoredReading,
   entitlement: Entitlement | null,
 ): ReadingView {
-  return entitlement
-    ? toPremiumView(reading, entitlement)
-    : toFreeView(reading);
+  if (entitlement) return toPremiumView(reading, entitlement);
+  if (reading.openAccess || !isPaywallEnabled()) return toOpenView(reading);
+  return toFreeView(reading);
+}
+
+function addSeconds(isoTime: string, seconds: number): string {
+  return new Date(Date.parse(isoTime) + seconds * 1000).toISOString();
 }

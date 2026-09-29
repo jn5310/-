@@ -60,8 +60,12 @@ export function useCheckout(readingId: string): CheckoutControls {
             window.location.assign(response.data.url);
             return; // 페이지를 떠날 때까지 '이동 중'을 유지한다
           }
-          if (response.error.code === "ALREADY_UNLOCKED") {
-            window.location.reload(); // 다른 탭에서 이미 결제했다 — 열린 풀이를 다시 읽는다
+          if (
+            response.error.code === "ALREADY_UNLOCKED" ||
+            response.error.code === "PAYMENTS_DISABLED"
+          ) {
+            // 다른 탭에서 이미 결제했거나, 그사이 무료 개방으로 바뀌었다 — 열린 풀이를 다시 읽는다
+            window.location.reload();
             return;
           }
           busy.current = false;

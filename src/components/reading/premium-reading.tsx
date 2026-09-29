@@ -53,7 +53,20 @@ const SHAPE_LABELS: Record<SealShape, string> = {
   circle: "Round",
 };
 
-/** 프리미엄 풀이: 사주 원국 → 추천 이름 3개 → 고른 이름의 풀이 · 도장 PNG · 증명서 PDF (광고 없음) */
+// 서버와 브라우저가 같은 문자열을 만들도록 언어·시간대를 고정한다 (하이드레이션 불일치 방지)
+const DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "long",
+  timeZone: "UTC",
+});
+
+function formatDate(isoTime: string): string {
+  return DATE_FORMAT.format(new Date(isoTime));
+}
+
+/**
+ * 전체 풀이: 사주 원국 → 추천 이름 3개 → 고른 이름의 풀이 · 도장 PNG · 증명서 PDF (광고 없음).
+ * 결제로 열린 풀이(access: "purchased")와 무료 개방 기간의 풀이(access: "open")가 같은 화면을 쓴다.
+ */
 export function PremiumReading({ view, justUnlocked }: PremiumReadingProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -90,7 +103,11 @@ export function PremiumReading({ view, justUnlocked }: PremiumReadingProps) {
       ) : null}
 
       <div className="flex flex-col gap-3">
-        <Eyebrow hangul="프리미엄 풀이">Premium reading</Eyebrow>
+        {view.access === "purchased" ? (
+          <Eyebrow hangul="프리미엄 풀이">Premium reading</Eyebrow>
+        ) : (
+          <Eyebrow hangul="이름 풀이">Free full reading</Eyebrow>
+        )}
         <h1
           id="reading-title"
           ref={headingRef}
@@ -238,7 +255,9 @@ export function PremiumReading({ view, justUnlocked }: PremiumReadingProps) {
 
       <div className="flex flex-col gap-3 border-t border-ink/10 pt-8 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-ink-muted">
-          Bookmark this page — your reading stays here for at least a year.
+          Bookmark this page — your reading stays here until{" "}
+          <time dateTime={view.expiresAt}>{formatDate(view.expiresAt)}</time>.
+          Download your seal and certificate to keep them for good.
         </p>
         <Link href="/#studio" className={secondaryButtonClass}>
           Create another name

@@ -1,5 +1,6 @@
 import { SealStudio } from "@/components/seal/seal-studio";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import { isPaywallEnabled } from "@/lib/monetization";
 
 export function SealSection() {
   return (
@@ -19,9 +20,10 @@ export function SealSection() {
           </h2>
           <p className="mt-4 text-lg leading-relaxed text-ink-soft">
             In Korea, a personal seal (<span lang="ko">도장, 圖章</span>) signs
-            everything from letters to contracts. Try the carving below —
-            Premium readings include your seal as a transparent, print-ready
-            PNG.
+            everything from letters to contracts.{" "}
+            {isPaywallEnabled()
+              ? "Try the carving below — Premium readings include your seal as a transparent, print-ready PNG."
+              : "Try the carving below and download it free as a transparent, print-ready PNG."}
           </p>
           <p className="mt-3 text-sm leading-relaxed text-ink-muted">
             Seals follow the traditional order: read the right column first,

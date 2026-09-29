@@ -9,6 +9,7 @@ import {
   inputClass,
 } from "@/components/ui/styles";
 import { cn } from "@/lib/cn";
+import { isPaywallEnabled } from "@/lib/monetization";
 import { parseSealText, SEAL_SHAPES, type SealShape } from "@/lib/seal";
 
 import { KoreanSeal } from "./korean-seal";
@@ -29,6 +30,7 @@ const SHAPE_LABELS: Record<SealShape, { label: string; hangul: string }> = {
 
 /** 도장 체험: 이름·모양·서체를 고르면 바로 미리 보고 내려받는다 */
 export function SealStudio() {
+  const paywall = isPaywallEnabled();
   const [draft, setDraft] = useState<string>(SAMPLE_NAMES[1]);
   // 한글 입력기(IME) 조합 중인 글자(ㄱ, 기 …)로는 도장을 다시 그리지 않는다
   const [name, setName] = useState<string>(SAMPLE_NAMES[1]);
@@ -176,14 +178,18 @@ export function SealStudio() {
       </div>
 
       <div className="flex flex-col items-center gap-4 lg:w-80">
-        {/* PNG 다운로드는 프리미엄 혜택이다 — 여기서는 미리보기만 한다 */}
+        {/* 페이월이 켜져 있으면 PNG 다운로드는 프리미엄 혜택이라 미리보기만, 무료 개방 중에는 바로 내려받는다 */}
         <KoreanSeal
           name={name}
           shape={shape}
           font={fontId}
           showInputError={false}
-          showDownload={false}
-          readyMessage="Preview · the PNG download comes with Premium"
+          showDownload={!paywall}
+          readyMessage={
+            paywall
+              ? "Preview · the PNG download comes with Premium"
+              : undefined
+          }
           className="w-full"
         />
         <a

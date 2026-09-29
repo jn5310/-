@@ -49,6 +49,11 @@ export const PAYMENT_ERROR_SPECS: Record<PaymentErrorCode, ErrorSpec> = {
     retryable: false,
     message: "This reading is already unlocked.",
   },
+  PAYMENTS_DISABLED: {
+    status: 404,
+    retryable: false,
+    message: "Everything is free right now — no payment is needed.",
+  },
   PAYMENT_UNAVAILABLE: {
     status: 503,
     retryable: true,

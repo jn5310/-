@@ -3,8 +3,12 @@ import Link from "next/link";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { SiteHeader } from "@/components/landing/site-header";
 import { primaryButtonClass } from "@/components/ui/styles";
+import { isPaywallEnabled, READING_RETENTION_DAYS } from "@/lib/monetization";
 
 export default function ReadingNotFound() {
+  const retention = isPaywallEnabled()
+    ? `Free previews are kept for ${READING_RETENTION_DAYS.standard} days and unlocked readings for a year.`
+    : `Readings are kept for ${READING_RETENTION_DAYS.standard} days.`;
   return (
     <>
       <SiteHeader />
@@ -24,8 +28,7 @@ export default function ReadingNotFound() {
             We couldn’t find this reading
           </h1>
           <p className="leading-relaxed text-ink-soft">
-            Free previews are kept for 30 days and unlocked readings for a year.
-            It only takes a minute to create a new one.
+            {retention} It only takes a minute to create a new one.
           </p>
           <Link href="/#studio" className={primaryButtonClass}>
             Create my Korean name

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { SiteHeader } from "@/components/landing/site-header";
 import { ReadingExperience } from "@/components/reading/reading-experience";
+import { isPaywallEnabled } from "@/lib/monetization";
 import { DEFAULT_SOCIAL_IMAGE } from "@/lib/seo/metadata";
 import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
 import { isReadingId, loadReading } from "@/server/readings/repository";
@@ -28,9 +29,12 @@ export async function generateMetadata({
   const title = first
     ? `${first.hangul} (${first.romanization}) — Korean name reading`
     : "Your Korean name reading";
+  const fullReading =
+    Boolean(loaded?.entitlement || loaded?.reading.openAccess) ||
+    !isPaywallEnabled();
   const description = !first
     ? "A Korean name crafted from a Saju birth chart."
-    : loaded?.entitlement
+    : fullReading
       ? `Three Korean names crafted from a Saju chart, starting with ${first.hangul} (${first.romanization}) — with Hanja meanings, a Korean seal and a name certificate.`
       : `“${first.summary}” See the meaning of ${first.hangul} (${first.romanization}) and two more names from the same Saju chart.`;
   const socialTitle = `${title} · ${SITE_NAME}`;
@@ -74,7 +78,8 @@ export default async function ReadingPage({
   const [{ id }, query] = await Promise.all([params, searchParams]);
   if (!isReadingId(id)) notFound();
 
-  const checkoutParam = firstValue(query.checkout);
+  // 무료 개방 중에는 결제 복귀 매개변수를 무시한다 (결제 완료·취소 안내가 뜨지 않게)
+  const checkoutParam = isPaywallEnabled() ? firstValue(query.checkout) : null;
   const checkout =
     checkoutParam === "success" || checkoutParam === "cancelled"
       ? checkoutParam

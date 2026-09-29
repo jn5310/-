@@ -1,5 +1,7 @@
 import { ImageResponse } from "next/og";
 
+import { isPaywallEnabled } from "@/lib/monetization";
+import { formatPrice, PREMIUM_OFFER } from "@/lib/pricing";
 import { OG_FONT_FAMILY, loadOgFonts } from "@/server/og/fonts";
 
 /*
@@ -16,7 +18,6 @@ const COPY = {
   headlineTop: "The Korean name",
   headlineBottom: "you were born for.",
   features: "From your Saju · Meaningful Hanja · Korean seal",
-  offer: "Free preview · Full reading $3.99",
   hangul: "김서윤",
   hanja: "金瑞允",
   romanization: "Kim Seo-yun",
@@ -43,6 +44,10 @@ const SAEKDONG = [
 ];
 
 export default async function OpenGraphImage() {
+  // 무료 개방 중(페이월 꺼짐)에는 가격 대신 "무료"를 내세운다 — 빌드할 때 한 번 정해진다
+  const offer = isPaywallEnabled()
+    ? `Free preview · Full reading ${formatPrice(PREMIUM_OFFER)}`
+    : "100% free · No sign-up";
   const fonts = await loadOgFonts(Object.values(COPY).join(""));
   // 한글 폰트를 받지 못했으면 한글·한자 없이 그린다 (네모 상자로 깨지지 않게)
   const korean = fonts.length > 0;
@@ -142,7 +147,7 @@ export default async function OpenGraphImage() {
                 fontWeight: 700,
               }}
             >
-              {COPY.offer}
+              {offer}
             </div>
           </div>
 

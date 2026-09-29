@@ -16,7 +16,7 @@ import {
   type AttemptRecord,
 } from "@/server/name-generation/generate-names";
 import { recordMetric } from "@/server/metrics";
-import { saveReading, toFreeView } from "@/server/readings/repository";
+import { saveReading, toReadingView } from "@/server/readings/repository";
 import { getKeyValueStore, StorageError } from "@/server/storage/kv";
 import type {
   FieldIssue,
@@ -31,8 +31,8 @@ import type { NameRequest } from "@/types/name";
  * 요청: NameRequest (application/json) — 입력 폼의 제출 값
  * 응답: GenerateNameResponse — { ok: true, data, meta } | { ok: false, error, meta }
  *
- * 생성 결과 전체는 서버에 풀이(reading)로 저장하고, 응답에는 무료 미리보기(이름 1개)만 담는다.
- * 나머지 이름·상세 분석은 결제 후 GET /api/readings/:id로 받는다.
+ * 생성 결과 전체는 서버에 풀이(reading)로 저장한다. 페이월이 꺼져 있으면(기본, 무료 개방) 응답에 전체 풀이를,
+ * 켜져 있으면 무료 미리보기(이름 1개)만 담고 나머지 이름·상세 분석은 결제 후 GET /api/readings/:id로 받는다.
  */
 
 // @google/genai는 Node.js 런타임에서 실행한다
@@ -93,8 +93,9 @@ export async function POST(request: Request): Promise<Response> {
 
     const body: GenerateNameSuccess = {
       ok: true,
-      // 무료 미리보기만 보낸다 — 프리미엄 데이터는 결제 확인 뒤 /api/readings/:id에서만 나간다
-      data: toFreeView(reading),
+      // 페이월이 켜져 있으면 무료 미리보기만 보낸다 — 프리미엄 데이터는 결제 확인 뒤 /api/readings/:id에서만 나간다.
+      // 꺼져 있으면(무료 개방) 전체 풀이를 보낸다
+      data: toReadingView(reading, null),
       meta: {
         requestId,
         model: outcome.model,

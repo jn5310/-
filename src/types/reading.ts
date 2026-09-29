@@ -2,8 +2,9 @@ import type { GenerateNameResult } from "./api";
 
 /*
  * 이름 풀이(reading) — 이름 생성 한 번의 결과를 저장해 두고, 결제 여부에 따라 다르게 보여 준다.
+ * 페이월이 꺼져 있으면(기본, lib/monetization.ts) 결제 없이 전체 뷰(tier: "premium", access: "open")를 준다.
  *
- * 무료 뷰에는 프리미엄 데이터(나머지 이름·한자·사주 풀이)를 절대 담지 않는다.
+ * 페이월이 켜져 있을 때 무료 뷰에는 프리미엄 데이터(나머지 이름·한자·사주 풀이)를 절대 담지 않는다.
  * 화면에서 흐리게(blur) 처리하는 것만으로는 보호되지 않기 때문이다 — 잠긴 영역은 가짜 내용으로 채운다.
  */
 
@@ -42,7 +43,12 @@ export interface FreeReadingView extends ReadingViewBase {
 
 export interface PremiumReadingView extends ReadingViewBase {
   tier: "premium";
+  /** purchased: 결제로 열림 · open: 무료 개방 기간이라 결제 없이 열림 */
+  access: "purchased" | "open";
+  /** 열린 시각 — 증명서 발급일로 쓴다 (무료 개방이면 풀이를 만든 시각) */
   unlockedAt: string;
+  /** 이 시각이 지나면 풀이가 지워진다 */
+  expiresAt: string;
   result: GenerateNameResult;
 }
 

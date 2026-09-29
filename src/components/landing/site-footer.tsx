@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { SealMark } from "@/components/ui/seal-mark";
+import { isPaywallEnabled } from "@/lib/monetization";
 import { SUPPORT_EMAIL } from "@/lib/site";
 
 export function SiteFooter() {
@@ -33,7 +34,7 @@ export function SiteFooter() {
                 href="/terms"
                 className="transition-colors hover:text-vermilion"
               >
-                Terms &amp; Refunds
+                {isPaywallEnabled() ? "Terms & Refunds" : "Terms of Use"}
               </Link>
             </li>
             <li>

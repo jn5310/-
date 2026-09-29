@@ -1,9 +1,11 @@
+import { isPaywallEnabled } from "@/lib/monetization";
 import { PREMIUM_OFFER } from "@/lib/pricing";
 import { SITE_DESCRIPTION, SITE_NAME, SUPPORT_EMAIL } from "@/lib/site";
 
 /*
  * 검색 엔진용 구조화 데이터(JSON-LD, schema.org).
  * 조직(Organization) · 웹사이트(WebSite) · 웹 앱과 가격(WebApplication + Offer)을 하나의 @graph로 묶는다.
+ * 가격은 실제 판매 상태를 따른다 — 무료 개방 중에는 무료 제공 하나만 적는다.
  * 평점(aggregateRating)처럼 실제로 없는 값은 넣지 않는다 — 꾸며 넣으면 Google 정책 위반으로 리치 결과가 막힌다.
  */
 
@@ -11,6 +13,9 @@ type JsonLdObject = Record<string, unknown>;
 
 export function buildSiteStructuredData(siteUrl: URL): JsonLdObject {
   const home = new URL("/", siteUrl).href;
+  // 무료 개방 중(페이월 꺼짐)에는 무료 제공 하나만, 켜져 있으면 무료 미리보기 + 프리미엄 가격
+  const paywall = isPaywallEnabled();
+  const currency = PREMIUM_OFFER.currency.toUpperCase();
   const organizationId = `${home}#organization`;
   const hasRealSupportEmail = !SUPPORT_EMAIL.endsWith("@example.com");
 
@@ -55,23 +60,34 @@ export function buildSiteStructuredData(siteUrl: URL): JsonLdObject {
     isAccessibleForFree: true,
     image: new URL("/opengraph-image", siteUrl).href,
     publisher: { "@id": organizationId },
-    offers: [
-      {
-        "@type": "Offer",
-        name: "Free preview — one Korean name",
-        price: "0",
-        priceCurrency: PREMIUM_OFFER.currency.toUpperCase(),
-        url: `${home}#studio`,
-      },
-      {
-        "@type": "Offer",
-        name: "Premium reading — three names, Saju & Hanja analysis, seal and certificate",
-        price: (PREMIUM_OFFER.amount / 100).toFixed(2),
-        priceCurrency: PREMIUM_OFFER.currency.toUpperCase(),
-        availability: "https://schema.org/InStock",
-        url: `${home}#studio`,
-      },
-    ],
+    offers: paywall
+      ? [
+          {
+            "@type": "Offer",
+            name: "Free preview — one Korean name",
+            price: "0",
+            priceCurrency: currency,
+            url: `${home}#studio`,
+          },
+          {
+            "@type": "Offer",
+            name: "Premium reading — three names, Saju & Hanja analysis, seal and certificate",
+            price: (PREMIUM_OFFER.amount / 100).toFixed(2),
+            priceCurrency: currency,
+            availability: "https://schema.org/InStock",
+            url: `${home}#studio`,
+          },
+        ]
+      : [
+          {
+            "@type": "Offer",
+            name: "Free Korean name reading — three names, Saju & Hanja analysis, seal and certificate",
+            price: "0",
+            priceCurrency: currency,
+            availability: "https://schema.org/InStock",
+            url: `${home}#studio`,
+          },
+        ],
   };
 
   return {

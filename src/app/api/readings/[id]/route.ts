@@ -8,8 +8,8 @@ import type { ReadingSuccess } from "@/types/api";
 /**
  * GET /api/readings/:id[?session_id=cs_…] — 풀이 조회.
  *
- * 결제한 풀이면 전체(PremiumReadingView), 아니면 무료 미리보기(FreeReadingView)를 돌려준다.
- * session_id가 있으면 Stripe에서 결제를 확인해 바로 연다 (웹훅 지연 보완, 멱등).
+ * 결제한 풀이나 무료 개방(페이월 꺼짐) 중이면 전체(PremiumReadingView), 아니면 무료 미리보기(FreeReadingView).
+ * 페이월이 켜져 있고 session_id가 있으면 Stripe에서 결제를 확인해 바로 연다 (웹훅 지연 보완, 멱등).
  */
 
 export const runtime = "nodejs";

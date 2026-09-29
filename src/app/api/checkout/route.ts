@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { CONSENT_REQUIRED_REGIONS } from "@/lib/analytics/config";
+import { isPaywallEnabled } from "@/lib/monetization";
 import { sanitizeGaIdentifiers } from "@/server/analytics/ga4";
 import { jsonResponse, readJsonBody } from "@/server/http";
 import { logEvent } from "@/server/log";
@@ -16,6 +17,7 @@ import type { CheckoutSuccess } from "@/types/api";
 
 /**
  * POST /api/checkout — 프리미엄 풀이($3.99 일시불) 결제 페이지 URL을 만든다.
+ * 페이월이 꺼져 있으면(기본, 무료 개방) 404 PAYMENTS_DISABLED — Stripe를 부르지 않는다.
  *
  * 요청: { readingId } · 응답: { ok: true, data: { url } } — 브라우저를 url(Stripe Checkout)로 보낸다.
  * 결제가 끝나면 Stripe가 /reading/[id]?checkout=success&session_id=…로 돌려보낸다.
@@ -38,6 +40,9 @@ const checkoutRequestSchema = z.object({
 export async function POST(request: Request): Promise<Response> {
   const requestId = crypto.randomUUID();
   try {
+    // 무료 개방 중(페이월 꺼짐)에는 결제 세션을 만들지 않는다 — 모든 기능이 이미 열려 있다
+    if (!isPaywallEnabled()) throw new PaymentError("PAYMENTS_DISABLED");
+
     const parsed = checkoutRequestSchema.safeParse(
       await readJsonBody(request, MAX_BODY_BYTES, request.signal),
     );
@@ -48,8 +53,10 @@ export async function POST(request: Request): Promise<Response> {
 
     const loaded = await loadReading(readingId);
     if (!loaded) throw new PaymentError("READING_NOT_FOUND");
-    // 이미 연 풀이는 다시 결제하지 않게 막는다
-    if (loaded.entitlement) throw new PaymentError("ALREADY_UNLOCKED");
+    // 이미 연 풀이(결제했거나 무료 개방 기간에 만든 풀이)는 결제하지 않게 막는다
+    if (loaded.entitlement || loaded.reading.openAccess) {
+      throw new PaymentError("ALREADY_UNLOCKED");
+    }
 
     const url = await createPremiumCheckout(
       loaded.reading,
