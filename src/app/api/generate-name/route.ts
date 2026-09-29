@@ -15,6 +15,7 @@ import {
   generateNames,
   type AttemptRecord,
 } from "@/server/name-generation/generate-names";
+import { recordMetric } from "@/server/metrics";
 import { saveReading, toFreeView } from "@/server/readings/repository";
 import { getKeyValueStore, StorageError } from "@/server/storage/kv";
 import type {
@@ -87,6 +88,8 @@ export async function POST(request: Request): Promise<Response> {
       englishName: nameRequest.englishName,
       result: outcome.result,
     });
+    // 퍼널 2단계(풀이 생성) — 응답을 보낸 뒤에 기록한다
+    recordMetric({ readings_created: 1 });
 
     const body: GenerateNameSuccess = {
       ok: true,
