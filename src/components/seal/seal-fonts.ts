@@ -7,7 +7,12 @@ import type { SealFont } from "@/lib/seal";
  * 페이지를 열 때 미리 받지 않고(preload 끔), 도장을 그릴 때 새길 글자가 든
  * unicode-range 조각만 내려받는다 — loadSealFont()가 이 일을 맡는다.
  */
-const songMyung = Song_Myung({ weight: "400", display: "swap" });
+// subsets 없이 preload(기본값 true)를 켜 두면 next/font가 빌드 오류를 낸다 — 다른 도장 폰트처럼 끈다
+const songMyung = Song_Myung({
+  weight: "400",
+  preload: false,
+  display: "swap",
+});
 const nanumMyeongjo = Nanum_Myeongjo({
   weight: "800",
   subsets: ["latin"],
