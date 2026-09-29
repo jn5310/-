@@ -4,14 +4,56 @@ import { notFound } from "next/navigation";
 import { SiteFooter } from "@/components/landing/site-footer";
 import { SiteHeader } from "@/components/landing/site-header";
 import { ReadingExperience } from "@/components/reading/reading-experience";
-import { isReadingId } from "@/server/readings/repository";
+import { DEFAULT_SOCIAL_IMAGE } from "@/lib/seo/metadata";
+import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
+import { isReadingId, loadReading } from "@/server/readings/repository";
 import { getReadingView } from "@/server/readings/service";
 
-export const metadata: Metadata = {
-  title: "Your Korean name reading",
-  // 개인 풀이 페이지 — 검색에 노출하지 않는다
-  robots: { index: false, follow: false },
-};
+/**
+ * 동적 제목·설명 — 한국 이름(한글·로마자)과 한 줄 의미만 쓴다.
+ * 영문 본명·생년월일은 넣지 않고, 무료 풀이는 결제 전이라 한자도 넣지 않는다.
+ * 개인 풀이 페이지라 검색 결과에는 올리지 않는다 (링크를 공유하면 카드 미리보기만 보인다).
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const loaded = isReadingId(id)
+    ? await loadReading(id).catch(() => null)
+    : null;
+  const first = loaded?.reading.result.names[0];
+
+  const title = first
+    ? `${first.hangul} (${first.romanization}) — Korean name reading`
+    : "Your Korean name reading";
+  const description = !first
+    ? "A Korean name crafted from a Saju birth chart."
+    : loaded?.entitlement
+      ? `Three Korean names crafted from a Saju chart, starting with ${first.hangul} (${first.romanization}) — with Hanja meanings, a Korean seal and a name certificate.`
+      : `“${first.summary}” See the meaning of ${first.hangul} (${first.romanization}) and two more names from the same Saju chart.`;
+  const socialTitle = `${title} · ${SITE_NAME}`;
+
+  return {
+    title,
+    description,
+    robots: { index: false, follow: false, nocache: true },
+    openGraph: {
+      type: "website",
+      siteName: SITE_NAME,
+      locale: SITE_LOCALE,
+      title: socialTitle,
+      description,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: socialTitle,
+      description,
+      images: [DEFAULT_SOCIAL_IMAGE],
+    },
+  };
+}
 
 type SearchParams = Record<string, string | string[] | undefined>;
 

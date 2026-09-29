@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import { LegalPage } from "@/components/legal/legal-page";
 import { formatPrice, PREMIUM_OFFER } from "@/lib/pricing";
+import { pageMetadata } from "@/lib/seo/metadata";
 import { SITE_NAME, SUPPORT_EMAIL } from "@/lib/site";
 
 /*
@@ -9,10 +10,11 @@ import { SITE_NAME, SUPPORT_EMAIL } from "@/lib/site";
  * 환불 조건은 사업 정책에 맞게 고치고, 운영 전에 법률 검토를 받는다.
  */
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Terms & Refunds",
   description: `Terms of use and refund policy for ${SITE_NAME}.`,
-};
+  path: "/terms",
+});
 
 export default function TermsPage() {
   const price = formatPrice(PREMIUM_OFFER);
