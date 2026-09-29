@@ -3,6 +3,9 @@ import "server-only";
 import { mkdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
+import { StorageError } from "./errors";
+import { readUpstashConfig, UpstashRest } from "./upstash-rest";
+
 /*
  * 아주 작은 키-값 저장소 — 이름 풀이·결제 권한을 저장한다.
  *
@@ -26,17 +29,7 @@ export interface KeyValueStore {
   set(key: string, value: string, options: SetOptions): Promise<boolean>;
 }
 
-export class StorageError extends Error {
-  constructor(
-    /** configuration: 설정이 빠짐(500) · unavailable: 저장소 일시 오류 */
-    readonly kind: "configuration" | "unavailable",
-    message: string,
-    options?: { cause?: unknown },
-  ) {
-    super(message, options);
-    this.name = "StorageError";
-  }
-}
+export { StorageError };
 
 /** 우리가 만드는 키만 허용한다: "reading:abc…" 처럼 접두어 + 영숫자·_·- */
 const KEY_PATTERN = /^[a-z]+:[A-Za-z0-9_-]{8,200}$/;
@@ -145,62 +138,26 @@ export class FileKeyValueStore implements KeyValueStore {
 
 // ─── Upstash Redis (REST) ────────────────────────────────────
 
-const UPSTASH_TIMEOUT_MS = 5_000;
-
 export class UpstashKeyValueStore implements KeyValueStore {
   readonly kind = "upstash" as const;
+  private readonly client: UpstashRest;
 
-  constructor(
-    private readonly url: string,
-    private readonly token: string,
-  ) {}
-
-  /** Upstash REST: 명령을 JSON 배열로 POST한다 — 예) ["SET","k","v","EX",60,"NX"] */
-  private async command(args: (string | number)[]): Promise<unknown> {
-    let response: Response;
-    try {
-      response = await fetch(this.url, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(args),
-        cache: "no-store",
-        signal: AbortSignal.timeout(UPSTASH_TIMEOUT_MS),
-      });
-    } catch (error) {
-      throw new StorageError("unavailable", "Upstash request failed", {
-        cause: error,
-      });
-    }
-
-    const body = (await response.json().catch(() => null)) as {
-      result?: unknown;
-      error?: string;
-    } | null;
-    if (!response.ok || !body || body.error) {
-      const detail = body?.error ?? `HTTP ${response.status}`;
-      // 401·403은 토큰 문제 — 다시 해도 낫지 않는다
-      throw new StorageError(
-        response.status === 401 || response.status === 403
-          ? "configuration"
-          : "unavailable",
-        `Upstash error: ${detail}`,
-      );
-    }
-    return body.result;
+  constructor(url: string, token: string, fetchImpl: typeof fetch = fetch) {
+    this.client = new UpstashRest(
+      { url: url.replace(/\/+$/, ""), token },
+      fetchImpl,
+    );
   }
 
   async get(key: string): Promise<string | null> {
     assertKey(key);
-    const result = await this.command(["GET", key]);
+    const result = await this.client.command(["GET", key]);
     return typeof result === "string" ? result : null;
   }
 
   async set(key: string, value: string, options: SetOptions): Promise<boolean> {
     assertKey(key);
-    const result = await this.command([
+    const result = await this.client.command([
       "SET",
       key,
       value,
@@ -224,24 +181,19 @@ let cached: { signature: string; store: KeyValueStore } | null = null;
 export function getKeyValueStore(
   env: Record<string, string | undefined> = process.env,
 ): KeyValueStore {
-  const url = (env.UPSTASH_REDIS_REST_URL ?? env.KV_REST_API_URL)?.trim();
-  const token = (env.UPSTASH_REDIS_REST_TOKEN ?? env.KV_REST_API_TOKEN)?.trim();
+  const upstash = readUpstashConfig(env);
   const directory = path.resolve(
     env.READING_STORE_DIR?.trim() || path.join(process.cwd(), ".data", "kv"),
   );
 
-  const signature =
-    url && token ? `upstash|${url}|${token}` : `file|${directory}`;
+  const signature = upstash
+    ? `upstash|${upstash.url}|${upstash.token}`
+    : `file|${directory}`;
   if (cached?.signature === signature) return cached.store;
 
   let store: KeyValueStore;
-  if (url && token) {
-    store = new UpstashKeyValueStore(url.replace(/\/+$/, ""), token);
-  } else if (url || token) {
-    throw new StorageError(
-      "configuration",
-      "Set both UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN.",
-    );
+  if (upstash) {
+    store = new UpstashKeyValueStore(upstash.url, upstash.token);
   } else if (env.VERCEL) {
     throw new StorageError(
       "configuration",
