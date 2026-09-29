@@ -1,6 +1,6 @@
-import type { NameRequest } from "./name";
+import type { BirthInfo, NameRequest } from "./name";
 import type { ReadingView } from "./reading";
-import type { FiveElement, SajuReading } from "./saju";
+import type { FiveElement, SajuReading, SajuResult } from "./saju";
 
 /*
  * API 계약 — 프론트엔드와 API가 함께 쓰는 타입.
@@ -8,6 +8,7 @@ import type { FiveElement, SajuReading } from "./saju";
  * - GET  /api/readings/:id   풀이 조회 (결제했거나 무료 개방이면 PremiumReadingView)
  * - POST /api/checkout       Stripe Checkout 결제 페이지 URL 발급 (페이월이 꺼져 있으면 PAYMENTS_DISABLED)
  * - POST /api/stripe-webhook Stripe 전용 (결제 완료 → 프리미엄 잠금 해제)
+ * - POST /api/saju           사주 분석 — 생년월일시만으로 원국·오행·총평 (저장하지 않음)
  */
 
 /** 모든 API의 실패 응답 형식 */
@@ -169,3 +170,20 @@ export interface CheckoutSuccess {
 }
 
 export type CheckoutResponse = CheckoutSuccess | ApiFailure<CheckoutErrorCode>;
+
+// ─── 사주 분석 ────────────────────────────────────────────────
+
+export interface SajuRequest {
+  birth: BirthInfo;
+}
+
+export type SajuErrorCode =
+  RequestBodyErrorCode | "VALIDATION_ERROR" | "INTERNAL_ERROR";
+
+export interface SajuSuccess {
+  ok: true;
+  data: SajuResult;
+  meta: { requestId: string };
+}
+
+export type SajuResponse = SajuSuccess | ApiFailure<SajuErrorCode>;

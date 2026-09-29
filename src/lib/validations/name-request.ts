@@ -55,7 +55,8 @@ const surnameSchema = z
       : toCustomSurname(surname.value),
   );
 
-const birthSchema = z
+/** 생년월일시 — 이름 생성 API와 사주 분석 API(POST /api/saju)가 함께 쓴다 */
+export const birthRequestSchema = z
   .object({
     date: z.string(),
     time: z
@@ -90,7 +91,7 @@ export const nameRequestSchema = z
     englishName: englishNameSchema,
     gender: z.enum(GENDERS, VALIDATION_MESSAGES.gender),
     surname: surnameSchema,
-    birth: birthSchema,
+    birth: birthRequestSchema,
     nameLength: z.literal(NAME_LENGTHS, VALIDATION_MESSAGES.nameLength),
   })
   .superRefine(

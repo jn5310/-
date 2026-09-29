@@ -35,6 +35,8 @@ export const ANALYTICS_EVENTS = {
   purchase: "purchase",
   sealDownload: "seal_download",
   certificateDownload: "certificate_download",
+  /** 사주 분석(사주 전용 메뉴) 결과를 봤다 */
+  sajuReading: "saju_reading",
 } as const;
 
 export type AnalyticsEventName =

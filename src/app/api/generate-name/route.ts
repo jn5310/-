@@ -1,5 +1,4 @@
-import type { ZodError } from "zod";
-
+import { toFieldIssues } from "@/lib/validations/field-issues";
 import { nameRequestSchema } from "@/lib/validations/name-request";
 import { createTimeoutSignal } from "@/server/deadline";
 import { jsonResponse, readJsonBody } from "@/server/http";
@@ -170,22 +169,6 @@ function failure(
     headers["Retry-After"] = String(seconds);
   }
   return jsonResponse(body, spec.status, headers);
-}
-
-/**
- * 경로마다 첫 번째 오류만 돌려준다. 경로는 요청 본문(NameRequest) 기준이다.
- * 입력 폼에 붙일 때는 surname.id → surname.choice, surname.value → surname.custom으로 바꾼다.
- */
-function toFieldIssues(error: ZodError): FieldIssue[] {
-  const seen = new Set<string>();
-  const issues: FieldIssue[] = [];
-  for (const issue of error.issues) {
-    const path = issue.path.map(String).join(".");
-    if (seen.has(path)) continue;
-    seen.add(path);
-    issues.push({ path, message: issue.message });
-  }
-  return issues;
 }
 
 /** 운영 로그(JSON 한 줄) — 생년월일 같은 개인 정보는 남기지 않는다 */

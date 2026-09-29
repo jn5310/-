@@ -65,6 +65,11 @@ export interface BirthFieldValues {
   timeZone: string;
 }
 
+/** 생년월일시만 받는 폼(사주 분석)과 이름 짓기 폼이 공유하는 부분 — BirthFields가 이 모양을 쓴다 */
+export interface BirthFormValues {
+  birth: BirthFieldValues;
+}
+
 export interface NameFormValues {
   englishName: string;
   gender: Gender;

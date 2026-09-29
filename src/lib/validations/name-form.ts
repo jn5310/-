@@ -6,6 +6,8 @@ import {
   GENDERS,
   NAME_LENGTHS,
   PRESET_SURNAME_IDS,
+  type BirthFieldValues,
+  type BirthInfo,
   type NameFormValues,
   type NameRequest,
   type SurnameFieldValues,
@@ -55,7 +57,8 @@ const surnameSchema = z
     }
   });
 
-const birthSchema = z
+/** 생년월일시 입력 — 이름 짓기 폼과 사주 분석 폼(saju-form.ts)이 함께 쓴다 */
+export const birthFieldsSchema = z
   .object({
     date: z.string().superRefine((value, ctx) => {
       const message = getBirthDateError(value);
@@ -91,7 +94,7 @@ const nameFormObjectSchema = z
     englishName: englishNameSchema,
     gender: z.enum(GENDERS, VALIDATION_MESSAGES.gender),
     surname: surnameSchema,
-    birth: birthSchema,
+    birth: birthFieldsSchema,
     nameLength: z.literal(NAME_LENGTHS, VALIDATION_MESSAGES.nameLength),
   })
   .superRefine(
@@ -115,6 +118,15 @@ const nameFormObjectSchema = z
     },
   );
 
+/** 입력값 → 요청용 생년월일시 (시각 미상이면 time은 null, 초는 버린다) */
+export function toBirthInfo(birth: BirthFieldValues): BirthInfo {
+  return {
+    date: birth.date,
+    time: birth.timeUnknown ? null : birth.time.slice(0, 5),
+    timeZone: birth.timeZone,
+  };
+}
+
 function toSurnameSelection({
   choice,
   custom,
@@ -136,11 +148,7 @@ export const nameFormSchema = nameFormObjectSchema.transform(
     englishName: values.englishName,
     gender: values.gender,
     surname: toSurnameSelection(values.surname),
-    birth: {
-      date: values.birth.date,
-      time: values.birth.timeUnknown ? null : values.birth.time.slice(0, 5),
-      timeZone: values.birth.timeZone,
-    },
+    birth: toBirthInfo(values.birth),
     nameLength: values.nameLength,
   }),
 ) satisfies z.ZodType<NameRequest, NameFormValues>;
