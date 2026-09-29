@@ -2,6 +2,7 @@
 
 한국 문화·K-pop·한국어에 관심 있는 외국인을 위한 **사주(四柱) 기반 한국 이름 추천** 서비스입니다.
 입력 폼 → Gemini 이름 생성 → 이름 3개·사주/한자 상세 풀이·도장 PNG·공식 이름 증명서 PDF로 이어집니다.
+이름 없이 사주만 보고 싶은 사람을 위한 **사주 분석**(`/saju`, 상단 메뉴 _Saju reading_)도 있습니다 — 생년월일시만으로 원국·오행(목·화·토·금·수)·총평을 바로 보여 줍니다.
 
 > **현재 무료 전면 개방 중입니다.** 초기 트래픽 확보를 위해 결제(페이월)를 꺼 두어, 모든 기능을 결제 없이 바로 보여 주고 Stripe 결제 버튼은 나오지 않습니다.
 > `NEXT_PUBLIC_PAYWALL_ENABLED=true`를 넣고 다시 배포하면 무료 미리보기(이름 1개) → **$3.99 프리미엄** 흐름이 돌아옵니다. 무료 기간에 만든 풀이는 그 뒤에도 열려 있습니다.
@@ -66,6 +67,7 @@ src/
 ├── app/
 │   ├── api/
 │   │   ├── generate-name/route.ts   # 이름 생성 → 풀이 저장 → 무료 미리보기 (POST)
+│   │   ├── saju/route.ts            # 사주 분석 — 만세력 + 규칙 기반 풀이, 저장 안 함 (POST)
 │   │   ├── readings/[id]/route.ts   # 풀이 조회 · 결제 복귀 확인 (GET)
 │   │   ├── checkout/route.ts        # Stripe Checkout 세션 생성 (POST)
 │   │   ├── stripe-webhook/route.ts  # Stripe 웹훅 — 결제 완료 시 잠금 해제 (POST)
@@ -73,6 +75,7 @@ src/
 │   │   ├── metrics/collect/route.ts # 쿠키 없는 방문 지표 수집 (POST, sendBeacon)
 │   │   └── admin/metrics/route.ts   # 매각 지표 내보내기 JSON·CSV (GET, 토큰 필요)
 │   ├── reading/[id]/         # 풀이 결과 페이지 (무료/프리미엄) · 결제 후 돌아오는 곳 (noindex)
+│   ├── saju/                 # 사주 분석 페이지 (사주 전용 메뉴 — 생년월일시 입력 → 결과)
 │   ├── privacy/ · terms/     # 개인정보처리방침 · 이용약관/환불 (AdSense·Stripe 심사용 초안)
 │   ├── ads.txt/route.ts      # AdSense 게시자 인증 파일
 │   ├── opengraph-image.tsx   # 공유 카드 이미지 1200×630 (한글 폰트 서브셋, 실패 시 라틴 디자인)
@@ -83,6 +86,7 @@ src/
 │   └── icon.svg              # 낙관(도장) 모티프 파비콘
 ├── components/
 │   ├── landing/              # 헤더 · 히어로 · 작명 원리 · 스튜디오 · 이름 도장 · 푸터 (서버 컴포넌트)
+│   ├── saju/                 # 사주 분석: 입력 폼 · 결과 화면 · 사주 원국 카드(이름 풀이와 공용)
 │   ├── reading/              # 풀이 화면 (클라이언트 컴포넌트)
 │   │   ├── reading-experience.tsx # 무료/프리미엄 전환 · 결제 복귀 후 확인될 때까지 재조회
 │   │   ├── free-reading.tsx      # 무료 미리보기 + 잠긴 영역(가짜 내용 블러) + 광고
@@ -126,6 +130,7 @@ src/
 │   ├── constants/            # 대표 성씨 데이터, 선택지 문구
 │   ├── saju/
 │   │   ├── four-pillars.ts       # 만세력: 생년월일시 → 사주팔자·오행·음양
+│   │   ├── interpretation.ts     # 사주 풀이(규칙 기반): 일간 성향 · 오행 세기 · 일간 세기 · 채우면 좋은 오행 · 총평
 │   │   ├── ganji.ts              # 천간·지지 표
 │   │   ├── sound-elements.ts     # 발음오행(초성)
 │   │   └── birth-hour.ts · five-elements.ts
@@ -138,7 +143,8 @@ src/
 │   ├── validations/
 │   │   ├── rules.ts          # 폼과 API가 함께 쓰는 검증 규칙
 │   │   ├── name-form.ts      # 폼 스키마 (폼 값 → NameRequest 변환)
-│   │   └── name-request.ts   # API 요청 본문 스키마 (서버 재검증)
+│   │   ├── name-request.ts   # API 요청 본문 스키마 (서버 재검증)
+│   │   └── saju.ts · field-issues.ts # 사주 분석 폼·API 스키마 · 검증 오류 → fieldErrors
 │   ├── date.ts · time-zone.ts · cn.ts
 ├── server/                   # 서버 전용 코드
 │   ├── name-generation/
@@ -190,6 +196,22 @@ docs/DEPLOYMENT.md            # Vercel 배포 체크리스트 · 환경 변수 �
 5. **프리미엄**: 사주 원국, 이름 3개, 글자별 한자·오행, 상세 분석(사주 조화·음령오행·운세), 도장 PNG(모양·서체 선택), 공식 이름 증명서 PDF를 광고 없이 보여 줍니다.
 
 서버 재검증 오류(`VALIDATION_ERROR`)는 해당 입력 필드 옆에 붙이고, 그 밖의 오류는 폼 아래 안내 문구로 보여 줍니다.
+
+**사주 분석** (`/saju`): 생년월일 · 출생 시각(모름 가능) · 출생지 시간대만 입력하면 `POST /api/saju`가 바로 결과를 돌려주고, 같은 화면에서 결과로 바뀝니다. "Read another chart"를 누르면 앞서 넣은 값이 채워진 폼으로 돌아갑니다.
+
+## 사주 분석 (사주 전용 메뉴)
+
+이름 추천 없이 사주만 보고 싶은 사람을 위한 페이지입니다. 모델을 부르지 않고 만세력 원국에 규칙 기반 풀이를 붙이므로 **즉시 · 무료**이고, 같은 원국은 늘 같은 풀이가 나옵니다. 생년월일시는 계산에만 쓰고 저장하지 않습니다.
+
+| 결과 항목                 | 내용                                                                                                                                           |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 사주 원국                 | 시·일·월·연 네 기둥(한자·한글), 일간, 오행 분포, 계산 참고 사항(서머타임 제거·시각 미상 등) — 이름 풀이와 같은 카드                            |
+| 총평                      | 일간 · 오행 분포 · 일간 세기 · 음양 · 채우면 좋은 오행을 엮은 한 단락                                                                          |
+| 일간 특성                 | 10천간의 자연물 비유(甲 큰 나무, 丙 태양, 壬 큰 바다 …) · 강점 3 · 주의점 2                                                                    |
+| 오행 분석(목·화·토·금·수) | 원국 8자(시각 미상이면 6자) 중 비율로 없음·약함·알맞음·강함·과다와 한 줄 풀이, 오상(仁·禮·信·義·智)                                            |
+| 균형                      | 일간 세기(같은 오행·생해 주는 오행의 비중, 월지 2점 — 간단한 추정) · 음양 · 채우면 좋은 오행(억부 기준, 부족한 것 먼저)과 색·방위·계절·생활 팁 |
+
+`POST /api/saju` — 요청 `{ "birth": { "date": "1998-04-12", "time": "14:30", "timeZone": "America/New_York" } }`(시각을 모르면 `"time": null`), 응답 `{ ok: true, data: { reading, analysis } }`. 검증은 이름 짓기와 같은 규칙(미래 날짜·시간대 정규화)이고 오류는 `VALIDATION_ERROR` 422 + `fieldErrors`(`birth.date` 등)입니다. 매각 지표에는 `saju_readings`로, GA4에는 `saju_reading` 이벤트로 남습니다.
 
 ## 수익화 — 프리미엄 결제 + 광고
 
@@ -457,6 +479,7 @@ curl -X POST http://localhost:3000/api/generate-name \
 | `GET /api/readings/:id[?session_id=cs_…]` | —                                                      | `ReadingView` (무료/프리미엄). `session_id`가 있으면 결제를 확인해 연다 · `READING_NOT_FOUND` 404                                                                                 |
 | `POST /api/checkout`                      | `{ "readingId": "…" }`                                 | `{ url }` (Stripe 결제 페이지) · `PAYMENTS_DISABLED` 404(무료 개방 중) · `READING_NOT_FOUND` 404 · `ALREADY_UNLOCKED` 409 · `PAYMENT_UNAVAILABLE` 503 · `CONFIGURATION_ERROR` 500 |
 | `POST /api/stripe-webhook`                | Stripe 이벤트 (서명 필수)                              | 200 `{ received: true }` · 서명 오류 400 · 처리 실패 500(Stripe가 재전송)                                                                                                         |
+| `POST /api/saju`                          | `{ "birth": { "date", "time" \| null, "timeZone" } }`  | `{ reading, analysis }` (원국 · 풀이, 저장 안 함) · `VALIDATION_ERROR` 422(`fieldErrors`)                                                                                         |
 | `POST /api/metrics/collect`               | `{ path, entry?, referrer?, utmSource? }` (text/plain) | 항상 204 — 같은 사이트 요청만 세고 봇·미리 불러오기는 무시                                                                                                                        |
 | `GET /api/admin/metrics`                  | `Authorization: Bearer <METRICS_ADMIN_TOKEN>`          | `type=summary·daily·monthly·payments` · `format=json·csv` · `from`/`to` — 토큰 없음 401 · 미설정 404                                                                              |
 

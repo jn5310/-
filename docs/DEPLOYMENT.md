@@ -144,6 +144,7 @@ notepad .env.local
 | 결제 버튼   | `begin_checkout` ★                       | 결제 버튼 클릭                                              | `placement`(`paywall_card`·`locked_name`·`locked_section`) + 금액·상품    |
 |             | `checkout_cancel`                        | Stripe에서 취소하고 돌아옴                                  |                                                                           |
 | 결제 완료   | `purchase` ★                             | 결제 확정 — 서버가 보냄 (`transaction_id` = Stripe 세션 ID) | `value: 3.99` · `currency: USD`                                           |
+| 사주 분석   | `saju_reading`                           | 사주 분석(`/saju`) 결과를 봤을 때                           | `birth_time_known`                                                        |
 | 이용        | `seal_download` · `certificate_download` | 도장 PNG · 증명서 PDF 저장                                  | `shape` · `renderer`                                                      |
 
 이름·생년월일 같은 개인 정보는 어떤 이벤트에도 넣지 않습니다(GA 약관 위반). 탐색 › **유입경로 탐색**에 위 순서로 단계를 넣으면 단계별 이탈률을 볼 수 있습니다.
@@ -166,6 +167,7 @@ GA4와 별개로, 서버가 직접 **방문 · 퍼널 · 결제**를 날짜별�
 | 방문      | 페이지 이동마다 (`/api/metrics/collect`, 쿠키 없음) | 날짜별 `pageviews` · `visits`(외부 유입 첫 페이지) · 페이지 묶음 · 국가 · 기기 · 유입 경로, 순 방문자 수 |
 | 풀이 생성 | `/api/generate-name` 성공                           | `readings_created`                                                                                       |
 | 결제 시작 | `/api/checkout` 성공                                | `checkouts_started`                                                                                      |
+| 사주 분석 | `/api/saju` 성공                                    | `saju_readings`                                                                                          |
 | 결제 완료 | 프리미엄이 처음 열린 순간 (결제당 1회)              | 원장 한 줄 + `payments` · `revenue_cents` (테스트 결제는 `payments_test` · `revenue_cents_test`)         |
 
 - 저장하지 않는 것: IP · User-Agent · 풀이 ID(원장에는 되돌릴 수 없는 해시 `reading_ref`만) · 이름 · 이메일 · 카드 정보.
