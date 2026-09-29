@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+/*
+ * K-Name Studio 디자인 토큰
+ * 한지(韓紙)의 따뜻한 미색 바탕에 먹(墨)과 인주(印朱)를 주조색으로,
+ * 오방색(五方色)과 색동(色動)을 포인트로 쓴다.
+ */
+@theme {
+  /* 바탕 · 먹 */
+  --color-hanji: #f6f1e7;
+  --color-hanji-deep: #ebe2d0;
+  --color-ink: #1e1b18;
+  --color-ink-soft: #4b443c;
+  --color-ink-muted: #756b5f;
+
+  /* 포인트 */
+  --color-vermilion: #b3372b; /* 인주(印朱) */
+  --color-vermilion-deep: #8c2a20;
+  --color-ochre: #82601f; /* 황토 · 금박 */
+  --color-ochre-deep: #6b4e18; /* 작은 배지 글씨용 — 옅은 배경에서 대비 6:1 이상 */
+
+  /* 오행 스와치 — 오방색 */
+  --color-wood: #2f6f5e; /* 靑 · 木 */
+  --color-fire: #b3372b; /* 赤 · 火 */
+  --color-earth: #c9962b; /* 黃 · 土 */
+  --color-metal: #e4ddcf; /* 白 · 金 */
+  --color-water: #1e1b18; /* 黑 · 水 */
+
+  --animate-rise: rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* next/font가 <html>에 주입하는 CSS 변수를 그대로 참조한다 */
+@theme inline {
+  --font-sans: var(--font-noto-sans-kr), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-noto-serif-kr), ui-serif, Georgia, serif;
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
+  ::selection {
+    background-color: color-mix(
+      in oklab,
+      var(--color-vermilion) 18%,
+      transparent
+    );
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.55;
+  }
+}
+
+/* 한지 질감: 은은한 빛 번짐 + 미세한 섬유 노이즈 */
+@utility hanji-texture {
+  background-color: var(--color-hanji);
+  background-image:
+    radial-gradient(
+      60rem 30rem at 0% -10%,
+      color-mix(in oklab, var(--color-ochre) 12%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      50rem 28rem at 100% 0%,
+      color-mix(in oklab, var(--color-vermilion) 8%, transparent),
+      transparent 70%
+    ),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.36 0 0 0 0 0.29 0 0 0 0 0.2 0 0 0 0.07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* 창호 문살 격자 */
+@utility lattice {
+  background-image:
+    linear-gradient(
+      to right,
+      color-mix(in oklab, var(--color-ink) 7%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--color-ink) 7%, transparent) 1px,
+      transparent 1px
+    );
+  background-size: 2.25rem 2.25rem;
+}
+
+/* 색동 띠 */
+@utility saekdong {
+  background-image: linear-gradient(
+    90deg,
+    #c8423a 0 16.66%,
+    #e2b33c 16.66% 33.33%,
+    #3f8a5a 33.33% 50%,
+    #2f5d9a 50% 66.66%,
+    #f3eee4 66.66% 83.33%,
+    #d67a9c 83.33% 100%
+  );
+}
