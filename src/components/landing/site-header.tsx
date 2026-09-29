@@ -36,6 +36,14 @@ export function SiteHeader() {
                 How it works
               </a>
             </li>
+            <li className="hidden sm:block">
+              <a
+                href="#seal"
+                className="text-ink-soft transition-colors hover:text-vermilion"
+              >
+                Name seal
+              </a>
+            </li>
             <li>
               <a
                 href="#studio"

@@ -34,7 +34,11 @@ src/
 │   ├── globals.css           # 디자인 토큰(한지·먹·인주·오방색) + 커스텀 유틸리티
 │   └── icon.svg              # 낙관(도장) 모티프 파비콘
 ├── components/
-│   ├── landing/              # 헤더 · 히어로 · 작명 원리 · 스튜디오 · 푸터 (서버 컴포넌트)
+│   ├── landing/              # 헤더 · 히어로 · 작명 원리 · 스튜디오 · 이름 도장 · 푸터 (서버 컴포넌트)
+│   ├── seal/                 # 전통 도장 생성기 (클라이언트 컴포넌트)
+│   │   ├── korean-seal.tsx       # 미리보기 캔버스 + 투명 PNG 다운로드
+│   │   ├── seal-studio.tsx       # 이름·모양·서체를 고르는 체험 UI
+│   │   └── seal-fonts.ts         # 도장 전용 웹 폰트 프리셋 (next/font)
 │   ├── name-form/            # 메인 입력 폼 (클라이언트 컴포넌트)
 │   │   ├── name-form.tsx         # useForm + zodResolver, 제출 → 요약 화면 전환
 │   │   ├── english-name-field.tsx
@@ -46,10 +50,17 @@ src/
 │   │   └── use-name-form-context.ts
 │   └── ui/                   # Field/FieldGroup, 공통 클래스, Eyebrow, SealMark
 ├── hooks/
-│   └── use-client-value.ts   # 브라우저 전용 값을 하이드레이션 안전하게 읽기
+│   ├── use-client-value.ts   # 브라우저 전용 값을 하이드레이션 안전하게 읽기
+│   └── use-korean-seal.ts    # 도장 렌더링·미리보기·다운로드 훅
 ├── lib/
 │   ├── constants/            # 대표 성씨 데이터, 선택지 문구
 │   ├── saju/                 # 12지시(時辰) 변환, 오행 메타데이터
+│   ├── seal/                 # 도장 엔진 (React에 의존하지 않는 순수 Canvas 모듈)
+│   │   ├── layout.ts             # 글자 수·모양별 전통 배치 계산
+│   │   ├── render.ts             # 테두리·글자·인주 질감 그리기
+│   │   ├── fonts.ts              # 새길 글자가 든 폰트 조각만 미리 받기
+│   │   ├── export.ts             # PNG 인코딩·다운로드·화면 밖 생성
+│   │   └── text.ts · types.ts · constants.ts · random.ts
 │   ├── validations/
 │   │   └── name-form.ts      # Zod 스키마 (폼 값 → NameRequest 변환)
 │   ├── date.ts · time-zone.ts · cn.ts
@@ -79,6 +90,42 @@ src/
 - **시각 미상**: 출생 시각을 모르면 시주(時柱) 없이 삼주(三柱)로 분석합니다.
 - **12지시 안내**: 입력한 시각이 어느 시진(예: 午時 · Hour of the Horse)에 해당하는지 보여 줍니다. 시계 시각 기준의 근사치이며, 실제 분석에서는 출생지 경도에 따른 진태양시 보정이 필요합니다. 예를 들어 서울 출생이면 한국 표준시 기준으로 자시를 23:30–01:29로 봅니다.
 - **복성 처리**: 남궁·황보·제갈·선우·독고 등 2음절 성씨(영문 관용 표기 포함)는 이름 자수 계산에 반영합니다.
+
+## 이름 도장 생성기
+
+한글 이름(1–4자)을 HTML5 Canvas로 전통 인장처럼 그려 **투명 배경 PNG**(`korean-seal-[이름].png`)로 내려받습니다. 렌더링은 모두 브라우저에서 이루어집니다.
+
+```tsx
+import { KoreanSeal } from "@/components/seal/korean-seal";
+import { useKoreanSeal } from "@/hooks/use-korean-seal";
+
+// 1) 컴포넌트: 미리보기 + 다운로드 버튼
+<KoreanSeal name="김민준" shape="circle" font="brush" />;
+
+// 2) 훅: 원하는 UI에 직접 연결
+const seal = useKoreanSeal("민준", { shape: "square", size: 2048 });
+<canvas ref={seal.canvasRef} />;
+<button onClick={seal.download} disabled={seal.status !== "ready"}>
+  Download
+</button>;
+
+// 3) 미리보기 없이 바로 받기 (React 불필요)
+import { SEAL_FONTS } from "@/components/seal/seal-fonts";
+import { downloadKoreanSeal } from "@/lib/seal";
+await downloadKoreanSeal("김서윤", { font: SEAL_FONTS.classic.font });
+```
+
+| 옵션      | 기본값     | 설명                                                                                                                       |
+| --------- | ---------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `shape`   | `"square"` | `"square"`(사각) · `"circle"`(원형)                                                                                        |
+| `font`    | `"brush"`  | `"brush"`(붓글씨·송명) · `"classic"`(명조·나눔명조 ExtraBold) · `"carved"`(각인·가석) 또는 `{ family, weight, inkSpread }` |
+| `size`    | `1024`     | 출력 해상도(px), 128–4096                                                                                                  |
+| `color`   | `#C8102E`  | 인주 색                                                                                                                    |
+| `texture` | `true`     | 인주 질감(잉크 반점·농담 얼룩·테두리 마모)                                                                                 |
+
+- **배치**는 전통 세로쓰기를 따라 오른쪽 열부터 위→아래로 읽습니다. 2자는 두 열, 3자는 오른쪽 열에 성(姓)을 크게 쓰고 왼쪽 열에 이름 두 자를 위아래로, 4자는 2×2입니다. 각 글자는 실제 잉크 경계(`measureText`)를 기준으로 칸을 가득 채우도록 늘리며, 과하게 찌그러지지 않게 가로·세로 배율 차이를 2.1배로 제한합니다.
+- **폰트**: 한글 웹 폰트는 unicode-range 조각으로 나뉘어 있어, 새길 글자가 든 조각만 `document.fonts.load()`로 받은 뒤 그립니다. 송명·가석은 KS X 1001 완성형 2,350자만 담고 있어서, 그 밖의 음절은 11,172자를 모두 갖춘 나눔명조로 이어 그립니다.
+- **질감**은 이름으로 만든 시드로 생성하므로 같은 설정이면 미리보기와 다운로드 파일이 항상 같습니다.
 
 ## 다음 단계
 
