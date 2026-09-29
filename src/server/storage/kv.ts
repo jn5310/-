@@ -182,8 +182,10 @@ export function getKeyValueStore(
   env: Record<string, string | undefined> = process.env,
 ): KeyValueStore {
   const upstash = readUpstashConfig(env);
+  // 로컬 개발용 파일 경로 — 빌드 추적(Turbopack)에서 빼서 프로젝트 전체가 서버 번들에 실리지 않게 한다
   const directory = path.resolve(
-    env.READING_STORE_DIR?.trim() || path.join(process.cwd(), ".data", "kv"),
+    /*turbopackIgnore: true*/ env.READING_STORE_DIR?.trim() ||
+      path.join(process.cwd(), ".data", "kv"),
   );
 
   const signature = upstash

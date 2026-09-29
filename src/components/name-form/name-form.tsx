@@ -139,7 +139,7 @@ export function NameForm() {
         noValidate
         aria-busy={isBusy || undefined}
         onFocus={handleFormFocus}
-        onSubmit={methods.handleSubmit(onValidSubmit)}
+        onSubmit={(event) => void methods.handleSubmit(onValidSubmit)(event)}
         className="flex flex-col divide-y divide-ink/10"
       >
         <div className="grid gap-8 pb-10 lg:grid-cols-2">

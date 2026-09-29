@@ -41,7 +41,6 @@ export function GenderField() {
                 type="radio"
                 value={gender}
                 className="sr-only"
-                aria-invalid={error ? true : undefined}
                 aria-describedby={
                   error ? fieldMessageIds(GROUP_ID).errorId : undefined
                 }

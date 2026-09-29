@@ -37,8 +37,8 @@ export function SurnameField() {
 
   // 성씨가 바뀌면 복성 여부에 따라 '이름 자수' 검증도 다시 돌린다
   const choiceField = register("surname.choice", { deps: ["nameLength"] });
+  // 라디오 역할은 aria-invalid를 지원하지 않는다 — 오류 문구만 연결한다
   const radioA11yProps = {
-    "aria-invalid": choiceError ? true : undefined,
     "aria-describedby": choiceError
       ? fieldMessageIds(GROUP_ID).errorId
       : undefined,

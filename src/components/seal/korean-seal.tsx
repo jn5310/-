@@ -38,7 +38,10 @@ export function KoreanSeal({
   className,
   ...options
 }: KoreanSealProps) {
-  const seal = useKoreanSeal(name, options);
+  // 결과를 풀어 쓴다 — 콜백 ref(canvasRef)와 같은 객체에서 status·text를 읽으면
+  // React Compiler 규칙(react-hooks/refs)이 객체 전체를 ref로 보고 렌더링 중 읽기를 막는다
+  const { canvasRef, status, error, text, usedFallbackFont, download } =
+    useKoreanSeal(name, options);
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const size = clampSealSize(options.size ?? DEFAULT_SEAL_SIZE);
@@ -47,7 +50,7 @@ export function KoreanSeal({
     setIsDownloading(true);
     setDownloadError(null);
     try {
-      await seal.download();
+      await download();
       trackEvent(ANALYTICS_EVENTS.sealDownload, {
         shape: options.shape ?? "square",
       });
@@ -60,11 +63,11 @@ export function KoreanSeal({
   };
 
   // 이름 형식 오류는 text가 null일 때만 생긴다 — 그리기 실패 오류는 항상 보여 준다
-  const sealError = seal.text === null && !showInputError ? null : seal.error;
+  const sealError = text === null && !showInputError ? null : error;
   const message =
     sealError ??
     downloadError ??
-    (seal.usedFallbackFont
+    (usedFallbackFont
       ? "The seal font couldn’t load, so a system font was used."
       : null);
 
@@ -72,21 +75,21 @@ export function KoreanSeal({
     <figure className={cn("flex flex-col items-center gap-5", className)}>
       <div className="relative aspect-square w-full max-w-80 rounded-3xl border border-ink/10 bg-white p-5 shadow-inner shadow-ink/5">
         <canvas
-          ref={seal.canvasRef}
+          ref={canvasRef}
           width={size}
           height={size}
           role="img"
           aria-label={
-            seal.text
-              ? `Traditional Korean seal carved with ${seal.text}`
+            text
+              ? `Traditional Korean seal carved with ${text}`
               : "Korean seal preview"
           }
           className={cn(
             "size-full transition-opacity duration-300",
-            seal.status === "ready" ? "opacity-100" : "opacity-30",
+            status === "ready" ? "opacity-100" : "opacity-30",
           )}
         />
-        {seal.text === null ? (
+        {text === null ? (
           <span
             aria-hidden="true"
             lang="ko"
@@ -106,9 +109,9 @@ export function KoreanSeal({
           )}
         >
           {message ??
-            (seal.status === "ready"
+            (status === "ready"
               ? (readyMessage ?? `Transparent PNG · ${size} × ${size}px`)
-              : seal.status === "rendering"
+              : status === "rendering"
                 ? "Carving your seal…"
                 : "")}
         </p>
@@ -117,7 +120,7 @@ export function KoreanSeal({
           <button
             type="button"
             onClick={handleDownload}
-            disabled={seal.status !== "ready" || isDownloading}
+            disabled={status !== "ready" || isDownloading}
             className={primaryButtonClass}
           >
             Download PNG

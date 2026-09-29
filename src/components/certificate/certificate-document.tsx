@@ -203,7 +203,11 @@ export function CertificateDocument({
         </View>
 
         {/* 오른쪽 아래 도장 — 손으로 찍은 듯 살짝 기울인다 */}
-        {seal ? <Image src={seal} style={styles.seal} /> : null}
+        {seal ? (
+          // react-pdf의 Image는 PDF에 그리는 그림이라 alt 속성이 없다 — HTML <img>용 규칙의 오탐
+          // eslint-disable-next-line jsx-a11y/alt-text
+          <Image src={seal} style={styles.seal} />
+        ) : null}
 
         <Text style={styles.disclaimer}>{t.disclaimer}</Text>
       </Page>

@@ -66,9 +66,10 @@ interface RenderedState {
  * 한글 이름을 전통 인장으로 그려 미리 보고 내려받는 훅.
  *
  * @example
- * const seal = useKoreanSeal("김민준", { shape: "circle", font: "brush" });
- * <canvas ref={seal.canvasRef} />
- * <button onClick={seal.download} disabled={seal.status !== "ready"}>Download</button>
+ * // 결과를 풀어 쓴다 — canvasRef와 같은 객체에서 status를 읽으면 react-hooks/refs 규칙에 걸린다
+ * const { canvasRef, status, download } = useKoreanSeal("김민준", { shape: "circle", font: "brush" });
+ * <canvas ref={canvasRef} />
+ * <button onClick={download} disabled={status !== "ready"}>Download</button>
  */
 export function useKoreanSeal(
   name: string,
