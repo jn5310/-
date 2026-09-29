@@ -1,0 +1,42 @@
+# Vercel과 같은 명령(npm install → npm run build)으로 빌드를 확인하고, 린트·타입 검사도 돌린다.
+# 배포 전에 빌드 오류를 GitHub에서 먼저 잡는다 (커밋 옆 ✓/✗ 표시).
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      # 저장소에 lock 파일이 없으면 Vercel처럼 npm install로 설치한다
+      - name: Install
+        run: |
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
+
+      - name: Build (same as Vercel)
+        run: npm run build
+
+      - name: Lint
+        if: ${{ !cancelled() }}
+        run: npm run lint
+
+      - name: Type check
+        if: ${{ !cancelled() }}
+        run: npm run typecheck
