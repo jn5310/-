@@ -1,8 +1,6 @@
 import { z } from "zod";
 
 import { getSurnameOption } from "@/lib/constants/surnames";
-import { getTodayIsoDate, isValidIsoDate } from "@/lib/date";
-import { isValidTimeZone } from "@/lib/time-zone";
 import {
   CUSTOM_SURNAME_CHOICE,
   GENDERS,
@@ -14,91 +12,20 @@ import {
   type SurnameSelection,
 } from "@/types/name";
 
-// ─── 규칙 ───────────────────────────────────────────────────
+import {
+  countSurnameSyllables,
+  englishNameSchema,
+  getBirthDateError,
+  getTimeZoneError,
+  isValidCustomSurname,
+  TIME_PATTERN,
+  toCustomSurname,
+  VALIDATION_MESSAGES,
+} from "./rules";
 
-/** 만세력 지원 범위의 하한 */
-export const MIN_BIRTH_DATE = "1900-01-01";
-const ENGLISH_NAME_MAX_LENGTH = 50;
-const CUSTOM_SURNAME_MAX_LENGTH = 20;
-
-/** 라틴 문자로 시작하고 라틴 문자·결합 부호·공백·’'.- 만 허용 (José, Zoë, O’Brien, Mary-Jane) */
-const ENGLISH_NAME_PATTERN = /^\p{Script=Latin}[\p{Script=Latin}\p{M} '’.-]*$/u;
-/** 한글 성씨 1–2음절 — 복성(남궁·황보·제갈·선우·독고 등) 포함 */
-const HANGUL_SURNAME_PATTERN = /^[가-힣]{1,2}$/;
-/** 영문 성씨 (Seo, Namgung, Sun-woo) */
-const LATIN_SURNAME_PATTERN = /^[A-Za-z]+(?:[-' ][A-Za-z]+)?$/;
-/**
- * 영문으로 적은 복성(複姓) — 소문자·구분자 제거 기준.
- * 남궁·황보·제갈·선우·독고·사공·서문·동방의 주요 관용 표기를 2음절로 인식한다.
- */
-const ROMANIZED_COMPOUND_SURNAMES = new Set([
-  "namgung",
-  "namkoong",
-  "namkung",
-  "namgoong", // 남궁
-  "hwangbo",
-  "whangbo", // 황보
-  "jegal",
-  "chegal", // 제갈
-  "seonu",
-  "seonwoo",
-  "sunwoo",
-  "sunu", // 선우
-  "dokgo",
-  "dokko",
-  "tokko", // 독고
-  "sagong",
-  "sakong", // 사공
-  "seomun",
-  "seomoon", // 서문
-  "dongbang", // 동방
-]);
-/** HH:mm — 브라우저가 초를 붙여도 허용 */
-const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/;
+export { countSurnameSyllables, MIN_BIRTH_DATE } from "./rules";
 
 const SURNAME_CHOICES = [...PRESET_SURNAME_IDS, CUSTOM_SURNAME_CHOICE] as const;
-
-// ─── UI와 공유하는 도메인 헬퍼 ───────────────────────────────
-
-/**
- * 성씨 음절 수. 대표 성씨는 모두 1음절이다.
- * 직접 입력은 한글이면 글자 수, 영문이면 알려진 복성 표기만 2음절로 보고 나머지는 1음절로 간주한다.
- */
-export function countSurnameSyllables(
-  surname: Partial<SurnameFieldValues> | undefined,
-): number {
-  if (surname?.choice !== CUSTOM_SURNAME_CHOICE) return 1;
-  const custom = surname.custom?.trim() ?? "";
-  if (HANGUL_SURNAME_PATTERN.test(custom)) return custom.length;
-
-  const normalized = custom.toLowerCase().replace(/[-' ]/g, "");
-  return ROMANIZED_COMPOUND_SURNAMES.has(normalized) ? 2 : 1;
-}
-
-function getBirthDateError(value: string): string | null {
-  if (value === "") return "Please enter your date of birth.";
-  if (!isValidIsoDate(value)) return "Please enter a valid date.";
-  if (value < MIN_BIRTH_DATE) return "Please enter a date from 1900 onward.";
-  if (value > getTodayIsoDate())
-    return "Your birth date can’t be in the future.";
-  return null;
-}
-
-// ─── 필드 스키마 ─────────────────────────────────────────────
-
-const englishNameSchema = z
-  .string()
-  .trim()
-  .overwrite((value) => value.replace(/\s+/g, " "))
-  .min(1, "Please enter your name.")
-  .max(
-    ENGLISH_NAME_MAX_LENGTH,
-    `Please keep it within ${ENGLISH_NAME_MAX_LENGTH} characters.`,
-  )
-  .regex(
-    ENGLISH_NAME_PATTERN,
-    "Use English letters — spaces, hyphens and apostrophes are fine.",
-  );
 
 /*
  * 조건부 검증은 하위 객체의 superRefine에서 처리한다.
@@ -107,10 +34,7 @@ const englishNameSchema = z
  */
 const surnameSchema = z
   .object({
-    choice: z.enum(
-      SURNAME_CHOICES,
-      "Pick a surname, or choose “Other” to type your own.",
-    ),
+    choice: z.enum(SURNAME_CHOICES, VALIDATION_MESSAGES.surnameChoice),
     custom: z.string().trim(),
   })
   .superRefine(({ choice, custom }, ctx) => {
@@ -120,20 +44,13 @@ const surnameSchema = z
       ctx.addIssue({
         code: "custom",
         path: ["custom"],
-        message: "Type the surname you’d like to use.",
+        message: VALIDATION_MESSAGES.customSurnameRequired,
       });
-    } else if (
-      custom.length > CUSTOM_SURNAME_MAX_LENGTH ||
-      !(
-        HANGUL_SURNAME_PATTERN.test(custom) ||
-        LATIN_SURNAME_PATTERN.test(custom)
-      )
-    ) {
+    } else if (!isValidCustomSurname(custom)) {
       ctx.addIssue({
         code: "custom",
         path: ["custom"],
-        message:
-          "Use 1–2 Hangul syllables (e.g. 서) or English letters (e.g. Seo).",
+        message: VALIDATION_MESSAGES.customSurnamePattern,
       });
     }
   });
@@ -147,14 +64,8 @@ const birthSchema = z
     time: z.string(),
     timeUnknown: z.boolean(),
     timeZone: z.string().superRefine((value, ctx) => {
-      if (value === "") {
-        ctx.addIssue({
-          code: "custom",
-          message: "Choose the time zone where you were born.",
-        });
-      } else if (!isValidTimeZone(value)) {
-        ctx.addIssue({ code: "custom", message: "Choose a valid time zone." });
-      }
+      const message = getTimeZoneError(value);
+      if (message) ctx.addIssue({ code: "custom", message });
     }),
   })
   .superRefine(({ time, timeUnknown }, ctx) => {
@@ -164,26 +75,24 @@ const birthSchema = z
       ctx.addIssue({
         code: "custom",
         path: ["time"],
-        message: "Enter your birth time, or tick “I don’t know”.",
+        message: VALIDATION_MESSAGES.birthTimeRequired,
       });
     } else if (!TIME_PATTERN.test(time)) {
       ctx.addIssue({
         code: "custom",
         path: ["time"],
-        message: "Enter a valid time (HH:MM).",
+        message: VALIDATION_MESSAGES.birthTimePattern,
       });
     }
   });
 
-// ─── 폼 스키마 ──────────────────────────────────────────────
-
 const nameFormObjectSchema = z
   .object({
     englishName: englishNameSchema,
-    gender: z.enum(GENDERS, "Choose the style of name you’d like."),
+    gender: z.enum(GENDERS, VALIDATION_MESSAGES.gender),
     surname: surnameSchema,
     birth: birthSchema,
-    nameLength: z.literal(NAME_LENGTHS, "Choose 2, 3 or 4 characters."),
+    nameLength: z.literal(NAME_LENGTHS, VALIDATION_MESSAGES.nameLength),
   })
   .superRefine(
     ({ surname, nameLength }, ctx) => {
@@ -192,8 +101,7 @@ const nameFormObjectSchema = z
         ctx.addIssue({
           code: "custom",
           path: ["nameLength"],
-          message:
-            "A two-syllable surname needs 3 or 4 characters in total, leaving room for a given name.",
+          message: VALIDATION_MESSAGES.nameLengthCompound,
         });
       }
     },
@@ -214,22 +122,14 @@ function toSurnameSelection({
   if (choice !== CUSTOM_SURNAME_CHOICE) {
     return { source: "preset", ...getSurnameOption(choice) };
   }
-
-  const isHangul = HANGUL_SURNAME_PATTERN.test(custom);
-  return {
-    source: "custom",
-    value: isHangul
-      ? custom
-      : custom.charAt(0).toUpperCase() + custom.slice(1).toLowerCase(),
-    script: isHangul ? "hangul" : "latin",
-  };
+  return toCustomSurname(custom);
 }
 
 /**
  * 입력 폼 스키마.
  * - 입력(z.input): NameFormValues — React Hook Form이 관리하는 원시 입력값
  * - 출력(z.output): NameRequest — 검증·정규화가 끝난 추천 요청 (handleSubmit이 받는 값)
- * 서버(Route Handler / Server Action)에서도 같은 스키마로 재검증할 수 있다.
+ * 서버는 같은 규칙으로 만든 nameRequestSchema(name-request.ts)로 다시 검증한다.
  */
 export const nameFormSchema = nameFormObjectSchema.transform(
   (values): NameRequest => ({

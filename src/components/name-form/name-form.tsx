@@ -49,7 +49,7 @@ export function NameForm() {
   });
 
   const onValidSubmit: SubmitHandler<NameRequest> = (request) => {
-    // TODO: 추천 API 연동 지점 — 사주 분석 → 오행 보완 → 한자 조합 결과(NameRecommendationResult)를 받는다
+    // TODO: POST /api/generate-name 연동 지점 — 응답 계약은 GenerateNameResponse(@/types/api)
     setSubmittedRequest(request);
   };
 

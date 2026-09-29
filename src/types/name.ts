@@ -1,5 +1,3 @@
-import type { ElementBalance, FiveElement, SajuChart } from "./saju";
-
 /*
  * K-Name Studio 도메인 모델
  *
@@ -107,43 +105,4 @@ export interface NameRequest {
   nameLength: NameLength;
 }
 
-// ─── 추천 결과 (추천 엔진 → UI) — 다음 단계 API 계약 ─────────────
-
-/** 이름에 쓰인 한자 한 글자의 성명학 정보 */
-export interface HanjaCharacter {
-  /** 한자 (예: 瑞) */
-  hanja: string;
-  /** 음 (예: 서) */
-  reading: string;
-  /** 훈(뜻)의 영문 풀이 (예: auspicious) */
-  meaning: string;
-  /** 원획법(原劃法) 획수 — 수리(數理) 사격(四格) 계산 기준 */
-  strokes: number;
-  /** 자원오행(字源五行) */
-  element: FiveElement;
-}
-
-export interface NameRecommendation {
-  id: string;
-  /** 전체 이름 한글 (예: 김서윤) */
-  hangul: string;
-  /** 영문 표기 (예: Kim Seo-yun) */
-  romanization: string;
-  /** 성을 제외한 이름 글자별 한자 */
-  givenNameHanja: HanjaCharacter[];
-  /** 발음오행 — 각 음절 초성 기준 */
-  soundElements: FiveElement[];
-  /** 이름 풀이 (영문) */
-  meaning: string;
-  /** 사주 보완·음운·수리를 종합한 적합도 (0–100) */
-  score: number;
-}
-
-export interface NameRecommendationResult {
-  request: NameRequest;
-  saju: SajuChart;
-  elementBalance: ElementBalance;
-  /** 이름으로 보완할 오행 (용신·희신) */
-  favorableElements: FiveElement[];
-  recommendations: NameRecommendation[];
-}
+// 추천 결과(API 응답) 계약은 ./api.ts — POST /api/generate-name
