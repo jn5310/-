@@ -20,7 +20,8 @@ import {
   type SealFontId,
 } from "./seal-fonts";
 
-const SAMPLE_NAMES = ["민준", "김서윤", "남궁민수"] as const;
+// 2·3·4자 예시 — 가운데(기본값)는 첫 화면 예시 이름 카드와 같은 홍길동
+const SAMPLE_NAMES = ["민준", "홍길동", "남궁민수"] as const;
 const NAME_INPUT_ID = "seal-name";
 
 const SHAPE_LABELS: Record<SealShape, { label: string; hangul: string }> = {

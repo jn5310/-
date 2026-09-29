@@ -11,12 +11,18 @@ const HIGHLIGHTS = [
   { hanja: "漢字", label: "Meaningful Hanja" },
 ] as const;
 
-/** 예시 이름: 김서윤(金瑞允) — 瑞 상서 서, 允 진실로 윤 */
+/**
+ * 예시 이름: 홍길동(洪吉童) — 한국에서 서식의 예시 이름으로 두루 쓰는 이름 (고전 소설 《홍길동전》의 주인공)
+ * 洪 넓을 홍 · 吉 길할 길 · 童 아이 동
+ */
 const SAMPLE_NAME = [
-  { hanja: "金", hangul: "김", meaning: "Gold · surname" },
-  { hanja: "瑞", hangul: "서", meaning: "Auspicious" },
-  { hanja: "允", hangul: "윤", meaning: "Sincere" },
+  { hanja: "洪", hangul: "홍", meaning: "Vast · surname" },
+  { hanja: "吉", hangul: "길", meaning: "Auspicious" },
+  { hanja: "童", hangul: "동", meaning: "Youthful" },
 ] as const;
+
+const SAMPLE_ROMANIZATION = "Hong Gil-dong";
+const SAMPLE_GLOSS = "Auspicious and youthful";
 
 export function HeroSection() {
   return (
@@ -129,12 +135,13 @@ function SampleNameCard() {
 
         <figcaption className="mt-8 border-t border-ink/10 pt-5">
           <span className="block font-serif text-2xl text-ink">
-            Kim Seo-yun
+            {SAMPLE_ROMANIZATION}
           </span>
           <span className="mt-1 block text-sm text-ink-muted">
-            “Auspicious and sincere” —{" "}
+            “{SAMPLE_GLOSS}” —{" "}
             <span lang="ko" className="font-serif">
-              김서윤 · 金瑞允
+              {SAMPLE_NAME.map((character) => character.hangul).join("")} ·{" "}
+              {SAMPLE_NAME.map((character) => character.hanja).join("")}
             </span>
           </span>
         </figcaption>
