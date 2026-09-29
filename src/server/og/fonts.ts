@@ -1,5 +1,7 @@
 import "server-only";
 
+import { unstable_rethrow } from "next/navigation";
+
 import { describeError, logEvent } from "@/server/log";
 import {
   fetchGoogleFontSubset,
@@ -63,6 +65,8 @@ export async function loadOgFonts(text: string): Promise<OgFont[]> {
           family: "serif",
           weight,
           text: characters,
+          // 빌드 때 한 번 받아 정적 이미지로 굳힌다 (no-store면 공유 이미지가 요청마다 다시 그려진다)
+          fetchCache: "force-cache",
         }),
       })),
     );
@@ -82,6 +86,8 @@ export async function loadOgFonts(text: string): Promise<OgFont[]> {
       style: "normal",
     }));
   } catch (error) {
+    // Next.js가 흐름 제어에 쓰는 오류(동적 렌더링 전환 등)는 삼키지 않고 다시 던진다
+    unstable_rethrow(error);
     logEvent("og", "warn", {
       event: "font-subset-failed",
       ...describeError(error),

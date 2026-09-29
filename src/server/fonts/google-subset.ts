@@ -103,7 +103,18 @@ export async function fetchGoogleFontSubset(
     family,
     weight,
     text,
-  }: { family: SubsetFamily; weight: SubsetWeight; text: string },
+    fetchCache = "no-store",
+  }: {
+    family: SubsetFamily;
+    weight: SubsetWeight;
+    text: string;
+    /**
+     * fetch 캐시. 기본 no-store — 증명서처럼 요청마다 글자가 다르면 Next.js 데이터 캐시에 쌓지 않는다.
+     * 빌드 때 한 번 그리는 공유 이미지는 force-cache를 넘겨야 정적 페이지로 미리 만들어진다
+     * (no-store fetch는 Next.js가 동적 렌더링 신호로 본다).
+     */
+    fetchCache?: RequestCache;
+  },
   fetchImpl: typeof fetch = fetch,
 ): Promise<FontSubset> {
   const key = `${family}|${weight}|${text}`;
@@ -120,9 +131,9 @@ export async function fetchGoogleFontSubset(
     `${SUBSET_FAMILIES[family].replace(/ /g, "+")}:wght@${weight}` +
     `&text=${encodeURIComponent(text)}`;
 
-  const css = await request(cssUrl, fetchImpl, "text");
+  const css = await request(cssUrl, fetchImpl, "text", fetchCache);
   const fontUrl = extractFontUrl(css);
-  const bytes = await request(fontUrl, fetchImpl, "bytes");
+  const bytes = await request(fontUrl, fetchImpl, "bytes", fetchCache);
   const contentType = detectFontType(bytes);
   if (!contentType) {
     throw new FontSubsetError(
@@ -172,23 +183,26 @@ async function request(
   url: string,
   fetchImpl: typeof fetch,
   as: "text",
+  cache: RequestCache,
 ): Promise<string>;
 async function request(
   url: string,
   fetchImpl: typeof fetch,
   as: "bytes",
+  cache: RequestCache,
 ): Promise<Uint8Array>;
 async function request(
   url: string,
   fetchImpl: typeof fetch,
   as: "text" | "bytes",
+  cache: RequestCache,
 ): Promise<string | Uint8Array> {
   let response: Response;
   try {
     response = await fetchImpl(url, {
       // 브라우저가 아닌 요청이라 알려 주면 Google은 TrueType(ttf)으로 준다 — react-pdf가 가장 잘 읽는 형식
       headers: { "User-Agent": "K-Name-Studio-Certificate/1.0" },
-      cache: "no-store",
+      cache,
       signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
     });
   } catch (error) {
