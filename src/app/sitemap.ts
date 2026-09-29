@@ -19,6 +19,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
+      url: new URL("/saju", siteUrl).href,
+      lastModified: new Date(),
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+    {
       url: new URL("/privacy", siteUrl).href,
       lastModified: policyUpdated,
       changeFrequency: "yearly",

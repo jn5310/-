@@ -217,8 +217,12 @@ async function guarded(
 
 // ─── 기록 ────────────────────────────────────────────────────
 
-/** 서버가 세는 퍼널 단계 — 방문(visits) → 풀이 생성 → 결제 시작 → 결제(payments) */
-export type FunnelCounter = "readings_created" | "checkouts_started";
+/**
+ * 서버가 세는 퍼널 단계 — 방문(visits) → 풀이 생성 → 결제 시작 → 결제(payments).
+ * saju_readings: 사주 분석(사주 전용 메뉴) 결과를 본 횟수
+ */
+export type FunnelCounter =
+  "readings_created" | "checkouts_started" | "saju_readings";
 
 /** 퍼널 카운터를 응답을 보낸 뒤에 더한다 — 예) recordMetric({ readings_created: 1 }) */
 export function recordMetric(

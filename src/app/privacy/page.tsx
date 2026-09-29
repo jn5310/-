@@ -57,6 +57,11 @@ export default function PrivacyPage() {
           are sent to Google’s Gemini API, which processes them to write the
           names and analysis.
         </li>
+        <li>
+          If you use Saju Reading, your birth date, time and time zone are used
+          only to calculate your chart. They are not stored and are not sent to
+          Gemini.
+        </li>
         <li>To show your reading again when you revisit your link.</li>
         {paywall ? (
           <li>To unlock your premium reading after payment.</li>

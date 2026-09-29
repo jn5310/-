@@ -6,6 +6,8 @@ import type {
   FieldIssue,
   GenerateNameResponse,
   ReadingResponse,
+  SajuRequest,
+  SajuResponse,
 } from "@/types/api";
 import type { NameRequest } from "@/types/name";
 
@@ -38,6 +40,18 @@ export function requestGeneratedNames(
     body: request,
     signal,
     timeoutMs: GENERATE_TIMEOUT_MS,
+  });
+}
+
+/** 사주 분석 — 서버가 만세력으로 바로 계산한다 (모델 호출 없음) */
+export function requestSajuReading(
+  request: SajuRequest,
+  signal?: AbortSignal,
+): Promise<ClientResult<SajuResponse>> {
+  return callApi<SajuResponse>("/api/saju", {
+    method: "POST",
+    body: request,
+    signal,
   });
 }
 

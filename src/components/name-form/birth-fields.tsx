@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo } from "react";
-import { useWatch } from "react-hook-form";
+import { useFormContext, useWatch } from "react-hook-form";
 
 import { describedBy, Field, FieldGroup } from "@/components/ui/field";
 import { inputClass } from "@/components/ui/styles";
@@ -20,8 +20,7 @@ import {
   withTimeZone,
 } from "@/lib/time-zone";
 import { MIN_BIRTH_DATE } from "@/lib/validations/name-form";
-
-import { useNameFormContext } from "./use-name-form-context";
+import type { BirthFormValues } from "@/types/name";
 
 const IDS = {
   group: "birth",
@@ -34,6 +33,10 @@ const IDS = {
 /** 서버 렌더링 시점의 스냅샷 — 렌더마다 새 배열을 만들지 않도록 모듈 상수로 둔다 */
 const NO_TIME_ZONES: readonly string[] = [];
 
+/**
+ * 생년월일 · 출생 시각(모름) · 출생지 시간대.
+ * 이름 짓기 폼과 사주 분석 폼이 함께 쓴다 — 두 폼 모두 값 아래에 birth 묶음을 둔다 (BirthFormValues).
+ */
 export function BirthFields() {
   const {
     control,
@@ -42,7 +45,7 @@ export function BirthFields() {
     setValue,
     clearErrors,
     formState: { errors },
-  } = useNameFormContext();
+  } = useFormContext<BirthFormValues>();
   const [time, timeUnknown] = useWatch({
     control,
     name: ["birth.time", "birth.timeUnknown"],

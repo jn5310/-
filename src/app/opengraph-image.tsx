@@ -18,9 +18,10 @@ const COPY = {
   headlineTop: "The Korean name",
   headlineBottom: "you were born for.",
   features: "From your Saju · Meaningful Hanja · Korean seal",
-  hangul: "김서윤",
-  hanja: "金瑞允",
-  romanization: "Kim Seo-yun",
+  // 첫 화면의 예시 이름 카드와 같은 이름 (홍길동 · 洪吉童)
+  hangul: "홍길동",
+  hanja: "洪吉童",
+  romanization: "Hong Gil-dong",
   seal: "名",
   studio: "한국 이름 공방",
 } as const;

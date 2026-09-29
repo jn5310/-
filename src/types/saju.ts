@@ -91,3 +91,85 @@ export interface SajuReading {
   standardTime: { date: string; time: string | null; utcOffset: string };
   notes: SajuNote[];
 }
+
+// ─── 사주 분석(사주 전용 메뉴) ─────────────────────────────────
+
+/** 원국 안에서 한 오행의 세기: 없음 · 약함 · 알맞음 · 강함 · 과다 */
+export type ElementLevel =
+  "missing" | "low" | "balanced" | "strong" | "dominant";
+
+export interface ElementInsight {
+  element: FiveElement;
+  /** 원국 글자 수 — 시주를 모르면 6자 중, 알면 8자 중 */
+  count: number;
+  /** 전체 글자에서 차지하는 비율 (0–1) */
+  share: number;
+  level: ElementLevel;
+  /** 이 오행이 뜻하는 기질 (예: "growth, vision and kindness") */
+  qualities: string;
+  /** 오상(五常) 덕목 (예: "Benevolence 仁") */
+  virtue: string;
+  /** 세기에 따른 한 줄 풀이 */
+  summary: string;
+}
+
+/** 일간(日干) 풀이 — 사주의 주인공이 어떤 사람인지 */
+export interface DayMasterProfile {
+  stem: HeavenlyStem;
+  hanja: string;
+  hangul: string;
+  element: FiveElement;
+  yinYang: YinYang;
+  /** 자연물 비유 (예: "The Sun") */
+  image: string;
+  /** 비유의 한국어 (예: "태양") */
+  imageKo: string;
+  summary: string;
+  strengths: string[];
+  challenges: string[];
+}
+
+/** 일간의 세기(신강·중화·신약) — 간단한 가중치 추정 */
+export type DayMasterStrength = "strong" | "balanced" | "weak";
+
+/** 오행을 생활에서 채우는 방법 (오방색·방위·계절) */
+export interface ElementTip {
+  element: FiveElement;
+  colors: string;
+  direction: string;
+  season: string;
+  activities: string;
+}
+
+export interface SajuAnalysis {
+  dayMaster: DayMasterProfile;
+  strength: {
+    level: DayMasterStrength;
+    /** 일간을 돕는 글자(같은 오행 · 생해 주는 오행)의 점수 — 월지(月支)는 2점 */
+    support: number;
+    total: number;
+    summary: string;
+  };
+  /** 木·火·土·金·水 순서 */
+  elements: ElementInsight[];
+  /** 가장 많은 오행 (고르게 퍼져 있으면 빈 배열) */
+  dominant: FiveElement[];
+  /** 없거나 약한 오행 */
+  lacking: FiveElement[];
+  yinYang: {
+    yang: number;
+    yin: number;
+    tendency: "yang" | "yin" | "balanced";
+    summary: string;
+  };
+  /** 채우면 좋은 오행 — 일간 세기(억부)를 기준으로, 원국에 부족한 것을 먼저 */
+  balancing: { elements: FiveElement[]; summary: string; tips: ElementTip[] };
+  /** 사주 총평 */
+  overview: string;
+}
+
+/** 사주 분석 결과 — 만세력 원국 + 풀이 */
+export interface SajuResult {
+  reading: SajuReading;
+  analysis: SajuAnalysis;
+}
