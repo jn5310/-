@@ -5,6 +5,8 @@
 무료 화면은 Google AdSense 광고로, 프리미엄은 광고 없이 운영하는 하이브리드 수익 모델입니다.
 UI 문구는 영어이고, 한글·한자를 함께 적어 한국적인 분위기를 살렸습니다.
 
+**Vercel 운영 배포 · 환경 변수 · GA4 설정 · 매각(Flippa) 준비는 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)를 보세요.**
+
 ## 기술 스택
 
 | 영역       | 사용 기술                                                    |
@@ -17,6 +19,9 @@ UI 문구는 영어이고, 한글·한자를 함께 적어 한국적인 분위�
 | PDF        | `@react-pdf/renderer` v4 (벡터) · 캔버스 이미지 PDF(대체)    |
 | 저장소     | 로컬 파일(`.data/kv`) 또는 Upstash Redis(REST)               |
 | 광고       | Google AdSense (무료 화면만, 선택)                           |
+| SEO        | Metadata API · 공유 이미지(`next/og`) · JSON-LD · sitemap    |
+| 분석       | GA4 (동의 모드 v2 · 서버 purchase: Measurement Protocol)     |
+| 매각 지표  | 자체 원장 — Upstash(Vercel KV) 또는 Supabase(Postgres)       |
 | 폰트       | Noto Sans KR · Noto Serif KR (`next/font/google`, 가변 폰트) |
 
 ## 시작하기
@@ -58,11 +63,15 @@ src/
 │   │   ├── readings/[id]/route.ts   # 풀이 조회 · 결제 복귀 확인 (GET)
 │   │   ├── checkout/route.ts        # Stripe Checkout 세션 생성 (POST)
 │   │   ├── stripe-webhook/route.ts  # Stripe 웹훅 — 결제 완료 시 잠금 해제 (POST)
-│   │   └── fonts/subset/route.ts    # 증명서 PDF용 한글 폰트 서브셋 (GET)
-│   ├── reading/[id]/         # 풀이 결과 페이지 (무료/프리미엄) · 결제 후 돌아오는 곳
+│   │   ├── fonts/subset/route.ts    # 증명서 PDF용 한글 폰트 서브셋 (GET)
+│   │   ├── metrics/collect/route.ts # 쿠키 없는 방문 지표 수집 (POST, sendBeacon)
+│   │   └── admin/metrics/route.ts   # 매각 지표 내보내기 JSON·CSV (GET, 토큰 필요)
+│   ├── reading/[id]/         # 풀이 결과 페이지 (무료/프리미엄) · 결제 후 돌아오는 곳 (noindex)
 │   ├── privacy/ · terms/     # 개인정보처리방침 · 이용약관/환불 (AdSense·Stripe 심사용 초안)
 │   ├── ads.txt/route.ts      # AdSense 게시자 인증 파일
-│   ├── layout.tsx            # 폰트·메타데이터·뷰포트
+│   ├── opengraph-image.tsx   # 공유 카드 이미지 1200×630 (한글 폰트 서브셋, 실패 시 라틴 디자인)
+│   ├── robots.ts · sitemap.ts · manifest.ts # 운영만 색인 허용 · 공개 페이지 목록 · PWA 매니페스트
+│   ├── layout.tsx            # 폰트·기본 메타데이터(OG·Twitter·robots·소유권 확인)·뷰포트·GA
 │   ├── page.tsx              # 랜딩 페이지 (섹션 조합)
 │   ├── globals.css           # 디자인 토큰(한지·먹·인주·오방색) + 커스텀 유틸리티
 │   └── icon.svg              # 낙관(도장) 모티프 파비콘
@@ -80,6 +89,8 @@ src/
 │   │   ├── render-vector.tsx     # 도장 PNG + 문서 → PDF Blob
 │   │   └── create-certificate.ts # 벡터 생성 → 실패 시 캔버스 대체
 │   ├── ads/ad-slot.tsx       # AdSense 광고 칸 (환경 변수가 없으면 표시 안 함)
+│   ├── analytics/analytics.tsx # GA4 초기화(동의 모드 v2) · 비식별 page_view · 자체 지표 비콘
+│   ├── seo/json-ld.tsx       # 구조화 데이터 <script type="application/ld+json">
 │   ├── legal/legal-page.tsx  # 정책 문서 공통 틀
 │   ├── seal/                 # 전통 도장 생성기 (클라이언트 컴포넌트)
 │   │   ├── korean-seal.tsx       # 미리보기 캔버스 + 투명 PNG 다운로드
@@ -102,7 +113,10 @@ src/
 │   ├── certificate/          # 증명서 내용(content.ts) · 증명서 ID(certificate-id.ts) · 디자인 값(design.ts)
 │   │                         #   · 캔버스 대체 렌더러(raster.ts) → 의존성 없는 JPEG PDF 작성기(pdf.ts)
 │   ├── pricing.ts            # 프리미엄 가격 $3.99 (결제·표시가 함께 쓰는 단일 값)
-│   ├── ads.ts · site.ts      # AdSense 설정 · 사이트 연락처
+│   ├── ads.ts · site.ts      # AdSense 설정 · 사이트 이름·설명·연락처
+│   ├── site-url.ts           # 정식 사이트 주소 (APP_URL → Vercel 운영 도메인 → 배포 주소)
+│   ├── seo/                  # 페이지별 메타데이터(metadata.ts) · JSON-LD(structured-data.ts)
+│   ├── analytics/            # GA4 설정(config.ts) · 이벤트(track.ts) · 주소 비식별화(redact.ts)
 │   ├── constants/            # 대표 성씨 데이터, 선택지 문구
 │   ├── saju/
 │   │   ├── four-pillars.ts       # 만세력: 생년월일시 → 사주팔자·오행·음양
@@ -130,14 +144,23 @@ src/
 │   │   ├── hanja.ts              # 한자 음·인명용 여부 조회 (hanja-readings.ts: Unihan 생성 데이터)
 │   │   └── errors.ts             # 오류 코드 ↔ HTTP 상태·사용자 문구
 │   ├── payments/
-│   │   ├── checkout.ts           # Checkout 세션 생성 (success_url·cancel_url·metadata)
+│   │   ├── checkout.ts           # Checkout 세션 생성 (success_url·cancel_url·metadata·GA 식별자)
 │   │   ├── fulfillment.ts        # 결제 확인 → 프리미엄 잠금 해제 (멱등, 웹훅·결제 복귀 공용)
+│   │   ├── purchase-events.ts    # 처음 열린 순간 한 번: 결제 원장 기록 · GA4 purchase
 │   │   ├── stripe.ts             # Stripe 클라이언트·키 검증
 │   │   └── errors.ts · respond.ts
 │   ├── readings/
 │   │   ├── repository.ts         # 풀이 ID 발급·저장·권한 부여·무료/프리미엄 뷰
 │   │   └── service.ts            # 권한에 맞는 풀이 읽기 (+ 결제 복귀 확인)
-│   ├── storage/kv.ts             # 키-값 저장소: 파일(로컬) · Upstash Redis(운영)
+│   ├── storage/                  # kv.ts(파일 · Upstash) · upstash-rest.ts(REST 클라이언트) · errors.ts
+│   ├── metrics/                  # 매각 실사용 지표
+│   │   ├── index.ts              # 저장소 선택 · 방문/퍼널/결제 기록 (실패해도 앱은 계속)
+│   │   ├── visitor.ts            # 봇 제외 · 기기 · 유입 경로 · 날마다 바뀌는 방문자 해시
+│   │   ├── report.ts             # 합계·전환율·월별 집계 · CSV (수식 주입 방지)
+│   │   └── backends/             # file.ts · upstash.ts(Lua 원자 기록) · supabase.ts(REST · 함수 호출)
+│   ├── analytics/ga4.ts          # GA4 Measurement Protocol — 서버가 보내는 purchase
+│   ├── og/fonts.ts               # 공유 이미지용 한글 폰트 서브셋 (가변·WOFF2 폰트 거부)
+│   ├── background.ts             # 응답 뒤 작업 (next/server after)
 │   ├── fonts/google-subset.ts    # 증명서용 한글 폰트 서브셋 (Google Fonts text=, 메모리 캐시)
 │   ├── http.ts                   # 본문 읽기(크기 제한·원문 바이트)·응답 헬퍼
 │   ├── log.ts                    # 개인 정보 없는 JSON 로그
@@ -147,6 +170,8 @@ src/
     ├── api.ts                # API 요청·응답 계약 (이름 생성 · 풀이 조회 · 결제)
     ├── reading.ts            # 무료/프리미엄 풀이 뷰
     └── saju.ts               # 오행 · 천간 · 지지 · 사주팔자 · 원국
+supabase/migrations/          # (선택) 지표 표·함수 — SQL Editor에서 한 번 실행
+docs/DEPLOYMENT.md            # Vercel 배포 체크리스트 · 환경 변수 · GA4 · 매각 준비
 ```
 
 ## 화면 흐름
@@ -202,6 +227,34 @@ src/
 - **자동 광고(Auto ads)는 켜지 마세요.** 무료와 프리미엄이 같은 URL(`/reading/[id]`)이라 자동 광고를 켜면 결제한 사용자에게도 광고가 나올 수 있습니다. 수동 광고 단위만 씁니다.
 - `/ads.txt`는 게시자 ID로 자동 생성됩니다(`google.com, pub-…, DIRECT, f08c47fec0942fa0`).
 - 승인 준비: 개인정보처리방침(`/privacy`, 광고 쿠키·Google 파트너 사이트 안내 포함)과 이용약관·환불(`/terms`) 초안이 있습니다. 사업자 정보·연락처(`NEXT_PUBLIC_SUPPORT_EMAIL`)를 채우고 **법률 검토를 받은 뒤** 공개하세요. EEA·영국·스위스 방문자를 위해 AdSense › 개인 정보 보호 및 메시지에서 Google 인증 동의 메시지(CMP)를 켭니다.
+
+## SEO · 분석 · 매각 지표
+
+설정 절차와 매각(Flippa) 준비는 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)에 있습니다. 여기서는 동작 방식만 요약합니다.
+
+### SEO
+
+- **메타데이터**: 레이아웃이 `metadataBase`(= `APP_URL`) · 제목 틀(`%s · K-Name Studio`) · Open Graph · Twitter 카드를 두고, 페이지마다 `pageMetadata()`로 제목·설명·canonical을 채웁니다. Next.js는 `openGraph`·`twitter`를 깊게 합치지 않으므로 페이지에서 전부 다시 채웁니다.
+- **풀이 페이지**: 제목은 추천 이름(예: `김서윤 (Kim Seo-yun) — Korean name reading`)이지만 영문 이름·생년월일은 넣지 않습니다. `noindex`와 `X-Robots-Tag`로 검색에서 빼고, robots.txt로는 막지 않습니다(막으면 검색 엔진이 noindex를 읽지 못해 주소만 색인될 수 있음).
+- **공유 이미지**: `app/opengraph-image.tsx`가 빌드 때 한 번 그립니다. 한글 글자만 담은 Noto Serif KR 서브셋을 받아 쓰고, 받지 못하면 라틴 전용 디자인으로 그려 빌드가 실패하지 않습니다(Satori가 읽지 못하는 가변·WOFF2 폰트는 거부).
+- **JSON-LD**: 홈에 Organization · WebSite · WebApplication(무료 · $3.99 Offer)을 하나의 `@graph`로 넣습니다. 실제로 없는 평점은 넣지 않습니다.
+- **색인**: 운영 배포(`VERCEL_ENV=production`)만 색인을 허용합니다. Vercel 미리보기와 개발 서버는 robots.txt와 메타 태그 모두 차단합니다.
+
+### GA4 전환 추적
+
+`폼 시작 → 폼 제출 → generate_lead(결과 페이지) → view_item → begin_checkout(결제 버튼) → purchase(결제 완료)` 순으로 이벤트를 보냅니다. 이벤트 표는 [DEPLOYMENT.md 6장](docs/DEPLOYMENT.md#6-google-analytics-4)에 있습니다.
+
+- **주소 비식별화**: 풀이 ID는 곧 열람 권한이라 GA에 그대로 쌓이면 안 됩니다. `page_view`를 직접 보내며 경로를 `/reading/[id]`로 바꾸고, 쿼리는 `utm_*`·`gclid` 같은 마케팅 매개변수만 남깁니다(결제 복귀의 `session_id`는 버림). 풀이 페이지 제목도 일반 문구로 바꿉니다.
+- **서버 purchase**: 결제 버튼을 누를 때 GA `client_id`·`session_id`를 Checkout 세션 metadata에 싣고, 결제가 확정되면 서버가 Measurement Protocol로 `purchase`(`transaction_id` = Stripe 세션 ID)를 보냅니다. `GA4_API_SECRET`이 있으면 브라우저는 purchase를 보내지 않습니다. 테스트 결제는 보내지 않습니다.
+- **동의 모드 v2**: EEA·영국·스위스는 기본 거부(쿠키 없음), 그 밖은 허용으로 시작합니다. 이 지역에서는 GA 식별자를 결제 metadata에 싣지 않습니다.
+
+### 매각 실사용 지표
+
+GA4와 별도로 서버가 방문(쿠키 없음) · 풀이 생성 · 결제 시작 · 결제 원장을 날짜별로 기록합니다. 저장소는 Upstash(풀이 저장소와 같은 DB) 또는 Supabase(Postgres)이고, `GET /api/admin/metrics`로 JSON·CSV를 내려받습니다.
+
+- IP·User-Agent·풀이 ID·이름은 저장하지 않습니다. 순 방문자는 날마다 바뀌는 HMAC 해시로만 셉니다.
+- 결제 원장과 그날 합계는 한 번에 기록되고(Upstash: Lua 스크립트, Supabase: 함수 트랜잭션), 같은 Stripe 세션은 한 번만 남습니다.
+- 지표 저장이 실패해도 이름 생성·결제는 그대로 진행됩니다.
 
 ## 폼 설계
 
@@ -304,6 +357,11 @@ await downloadKoreanSeal("김서윤", { font: SEAL_FONTS.classic.font });
 | `UPSTASH_REDIS_REST_URL` · `UPSTASH_REDIS_REST_TOKEN`                                                     | 서버리스 | 풀이 저장소 (없으면 `.data/kv` 파일)                           |
 | `NEXT_PUBLIC_ADSENSE_CLIENT_ID` · `NEXT_PUBLIC_ADSENSE_SLOT_LANDING` · `NEXT_PUBLIC_ADSENSE_SLOT_READING` |          | AdSense (없으면 광고 없음)                                     |
 | `NEXT_PUBLIC_SUPPORT_EMAIL`                                                                               | 운영     | 고객 문의 이메일 (푸터·정책 문서)                              |
+| `NEXT_PUBLIC_GA_MEASUREMENT_ID` · `GA4_API_SECRET`                                                        |          | GA4 측정 ID · 서버 purchase 비밀 (없으면 GA 없음)              |
+| `METRICS_BACKEND` · `METRICS_SALT` · `METRICS_ADMIN_TOKEN` · `SUPABASE_URL` · `SUPABASE_SECRET_KEY`       | 운영     | 매각 지표 저장소·해시 비밀·내보내기 토큰                       |
+| `GOOGLE_SITE_VERIFICATION` · `BING_SITE_VERIFICATION` · `NEXT_PUBLIC_TWITTER_HANDLE`                      |          | 검색 엔진 소유권 확인 · 공유 카드의 X 계정                     |
+
+환경별(Production · Preview · Development) 값은 [DEPLOYMENT.md 2장](docs/DEPLOYMENT.md#2-환경-변수)에 정리했습니다.
 
 > **개인 정보**: 영문 이름과 생년월일시가 Gemini로 전송됩니다. 무료 등급 키에서는 요청 내용이 Google 제품 개선에 쓰일 수 있으므로, 운영에서는 결제를 연결한 키나 Vertex AI를 쓰고 이용자에게 알립니다.
 
@@ -384,11 +442,13 @@ curl -X POST http://localhost:3000/api/generate-name \
 
 ### 풀이 조회 · 결제 API
 
-| API                                       | 요청                      | 응답 · 주요 오류                                                                                                                          |
-| ----------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/readings/:id[?session_id=cs_…]` | —                         | `ReadingView` (무료/프리미엄). `session_id`가 있으면 결제를 확인해 연다 · `READING_NOT_FOUND` 404                                         |
-| `POST /api/checkout`                      | `{ "readingId": "…" }`    | `{ url }` (Stripe 결제 페이지) · `READING_NOT_FOUND` 404 · `ALREADY_UNLOCKED` 409 · `PAYMENT_UNAVAILABLE` 503 · `CONFIGURATION_ERROR` 500 |
-| `POST /api/stripe-webhook`                | Stripe 이벤트 (서명 필수) | 200 `{ received: true }` · 서명 오류 400 · 처리 실패 500(Stripe가 재전송)                                                                 |
+| API                                       | 요청                                                   | 응답 · 주요 오류                                                                                                                          |
+| ----------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/readings/:id[?session_id=cs_…]` | —                                                      | `ReadingView` (무료/프리미엄). `session_id`가 있으면 결제를 확인해 연다 · `READING_NOT_FOUND` 404                                         |
+| `POST /api/checkout`                      | `{ "readingId": "…" }`                                 | `{ url }` (Stripe 결제 페이지) · `READING_NOT_FOUND` 404 · `ALREADY_UNLOCKED` 409 · `PAYMENT_UNAVAILABLE` 503 · `CONFIGURATION_ERROR` 500 |
+| `POST /api/stripe-webhook`                | Stripe 이벤트 (서명 필수)                              | 200 `{ received: true }` · 서명 오류 400 · 처리 실패 500(Stripe가 재전송)                                                                 |
+| `POST /api/metrics/collect`               | `{ path, entry?, referrer?, utmSource? }` (text/plain) | 항상 204 — 같은 사이트 요청만 세고 봇·미리 불러오기는 무시                                                                                |
+| `GET /api/admin/metrics`                  | `Authorization: Bearer <METRICS_ADMIN_TOKEN>`          | `type=summary·daily·monthly·payments` · `format=json·csv` · `from`/`to` — 토큰 없음 401 · 미설정 404                                      |
 
 ### 처리 흐름
 
@@ -418,6 +478,6 @@ curl -X POST http://localhost:3000/api/generate-name \
 ## 다음 단계
 
 1. IP별 요청 제한(rate limit)으로 이름 생성 API의 Gemini 비용 남용을 막습니다(예: Upstash Ratelimit).
-2. 환불·분쟁(`charge.refunded` · `charge.dispute.created`) 웹훅으로 권한을 회수하고, 구매자 이메일로 풀이 링크를 다시 보내는 "구매 복구"를 추가합니다.
+2. 환불·분쟁(`charge.refunded` · `charge.dispute.created`) 웹훅으로 권한을 회수하고 매각 지표 원장에 환불을 반영합니다(현재 원장은 총매출). 구매자 이메일로 풀이 링크를 다시 보내는 "구매 복구"도 추가합니다.
 3. 판매 지역에 따라 Stripe Tax(`automatic_tax`)로 부가세를 처리합니다.
 4. 출생 도시를 받아 경도 기반 진태양시 보정을 적용하고, 동음이자 성씨(정 鄭·丁, 조 趙·曺 등)의 한자·본관 선택 단계를 추가합니다.
