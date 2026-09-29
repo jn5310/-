@@ -13,6 +13,7 @@ import {
 } from "react-hook-form";
 
 import { primaryButtonClass } from "@/components/ui/styles";
+import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics/track";
 import { requestGeneratedNames, toFormFieldPath } from "@/lib/api/client";
 import { nameFormSchema } from "@/lib/validations/name-form";
 import type { ApiFailure } from "@/types/api";
@@ -59,6 +60,7 @@ export function NameForm() {
   const [serverError, setServerError] = useState<ServerError | null>(null);
   const [isNavigating, startNavigation] = useTransition();
   const inFlight = useRef<AbortController | null>(null);
+  const formStarted = useRef(false);
 
   // 입력값(NameFormValues) → zod 검증·변환 → handleSubmit에는 NameRequest가 전달된다
   const methods = useForm<NameFormValues, unknown, NameRequest>({
@@ -73,8 +75,21 @@ export function NameForm() {
     return () => pending.current?.abort();
   }, []);
 
+  // 퍼널 1단계: 폼에 처음 손댄 순간 (방문마다 한 번)
+  const handleFormFocus = () => {
+    if (formStarted.current) return;
+    formStarted.current = true;
+    trackEvent(ANALYTICS_EVENTS.formStart);
+  };
+
   const onValidSubmit: SubmitHandler<NameRequest> = async (request) => {
     setServerError(null);
+    // 개인 정보(이름·생년월일)는 보내지 않고 선택지 종류만 보낸다
+    trackEvent(ANALYTICS_EVENTS.formSubmit, {
+      name_length: request.nameLength,
+      surname_source: request.surname.source,
+      birth_time_known: request.birth.time !== null,
+    });
     inFlight.current?.abort();
     const controller = new AbortController();
     inFlight.current = controller;
@@ -89,6 +104,7 @@ export function NameForm() {
     }
 
     if (response.ok) {
+      trackEvent(ANALYTICS_EVENTS.lead, { lead_source: "name_form" });
       // 결과는 서버에 저장돼 있다 — 새로고침·공유·결제 복귀에 모두 쓰이는 풀이 페이지로 옮긴다
       const { readingId } = response.data;
       startNavigation(() => {
@@ -96,6 +112,10 @@ export function NameForm() {
       });
       return;
     }
+
+    trackEvent(ANALYTICS_EVENTS.generationError, {
+      error_code: response.error.code,
+    });
 
     // 서버 재검증 오류는 해당 입력 필드 옆에 붙인다
     const fieldErrors = (response.error.fieldErrors ?? [])
@@ -118,6 +138,7 @@ export function NameForm() {
       <form
         noValidate
         aria-busy={isBusy || undefined}
+        onFocus={handleFormFocus}
         onSubmit={methods.handleSubmit(onValidSubmit)}
         className="flex flex-col divide-y divide-ink/10"
       >

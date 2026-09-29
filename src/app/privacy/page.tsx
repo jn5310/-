@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { LegalPage } from "@/components/legal/legal-page";
+import { pageMetadata } from "@/lib/seo/metadata";
 import { SITE_NAME, SUPPORT_EMAIL } from "@/lib/site";
 
 /*
@@ -8,10 +9,11 @@ import { SITE_NAME, SUPPORT_EMAIL } from "@/lib/site";
  * 운영 전에 사업자 정보·관할 법령(GDPR·CCPA·한국 개인정보보호법 등)에 맞게 법률 검토를 받는다.
  */
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Privacy Policy",
-  description: `How ${SITE_NAME} handles your details, payments and advertising cookies.`,
-};
+  description: `How ${SITE_NAME} handles your details, payments, analytics and advertising cookies.`,
+  path: "/privacy",
+});
 
 export default function PrivacyPage() {
   return (
@@ -99,11 +101,51 @@ export default function PrivacyPage() {
         </li>
       </ul>
 
+      <h2>Analytics</h2>
+      <ul>
+        <li>
+          <strong>Google Analytics</strong> — we use Google Analytics 4 to
+          understand how people find and use {SITE_NAME}, for example which
+          pages are viewed and whether a reading was created or purchased. It
+          sets first-party cookies such as <code>_ga</code>. We never send your
+          name, birth details or the private link of your reading to Google
+          Analytics; reading pages are reported as a generic page. In the
+          European Economic Area, the UK and Switzerland, analytics cookies stay
+          off unless you consent.
+        </li>
+        <li>
+          <strong>Anonymous visit statistics</strong> — our own server also
+          counts visits without cookies. It keeps only daily totals (such as
+          page views, country, device type and the referring website) and a
+          one-way code that changes every day, so a visitor cannot be recognized
+          from one day to the next. The daily code is discarded within a few
+          days, and your IP address is never stored.
+        </li>
+        <li>
+          <strong>Purchase records</strong> — for accounting and business
+          reporting we keep a record of each payment: the Stripe payment
+          reference, amount, currency, billing country and a one-way code
+          derived from your reading link (never the link itself).
+        </li>
+      </ul>
+      <p>
+        You can opt out of Google Analytics with the{" "}
+        <a
+          href="https://tools.google.com/dlpage/gaoptout"
+          rel="noopener noreferrer"
+          target="_blank"
+        >
+          Google Analytics opt-out browser add-on
+        </a>
+        .
+      </p>
+
       <h2>Who we share it with</h2>
       <ul>
         <li>Google (Gemini API) — to generate your names.</li>
         <li>Stripe — to process payments.</li>
         <li>Google AdSense — to show ads on free pages.</li>
+        <li>Google Analytics — to measure how the site is used.</li>
         <li>
           Google Fonts — our server requests the Korean characters of your new
           name so your certificate can be printed in the right typeface. Your
@@ -119,6 +161,10 @@ export default function PrivacyPage() {
         <li>
           Unlocked readings are kept for about a year so you can come back and
           download your seal and certificate.
+        </li>
+        <li>
+          Google Analytics data is kept for up to 14 months. Anonymous daily
+          totals and purchase records are kept as business records.
         </li>
       </ul>
 

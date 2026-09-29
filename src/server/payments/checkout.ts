@@ -39,6 +39,7 @@ export function resolveAppOrigin(
 export async function createPremiumCheckout(
   reading: StoredReading,
   origin: string,
+  analytics: { clientId?: string; sessionId?: string } = {},
 ): Promise<string> {
   const stripe = getStripe();
   const productId = getStripeProductId();
@@ -69,7 +70,13 @@ export async function createPremiumCheckout(
     success_url: `${readingUrl}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${readingUrl}?checkout=cancelled`,
     client_reference_id: reading.id,
-    metadata: { product: PREMIUM_PRODUCT_KEY, readingId: reading.id },
+    metadata: {
+      product: PREMIUM_PRODUCT_KEY,
+      readingId: reading.id,
+      // 웹훅이 GA4로 purchase를 보낼 때 같은 사용자·세션으로 묶는다
+      ...(analytics.clientId ? { ga_client_id: analytics.clientId } : {}),
+      ...(analytics.sessionId ? { ga_session_id: analytics.sessionId } : {}),
+    },
     payment_intent_data: {
       // 이름·생년월일 같은 풀이 내용은 Stripe로 보내지 않는다 — 풀이 ID로만 연결한다
       description: "K-Name Studio premium reading",

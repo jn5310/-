@@ -7,6 +7,7 @@ import {
   useKoreanSeal,
   type UseKoreanSealOptions,
 } from "@/hooks/use-korean-seal";
+import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics/track";
 import { cn } from "@/lib/cn";
 import { clampSealSize, DEFAULT_SEAL_SIZE } from "@/lib/seal";
 
@@ -47,6 +48,9 @@ export function KoreanSeal({
     setDownloadError(null);
     try {
       await seal.download();
+      trackEvent(ANALYTICS_EVENTS.sealDownload, {
+        shape: options.shape ?? "square",
+      });
     } catch (error) {
       console.error("[KoreanSeal] download failed", error);
       setDownloadError("The download didn’t start. Please try again.");

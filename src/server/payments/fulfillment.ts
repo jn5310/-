@@ -2,12 +2,14 @@ import "server-only";
 
 import type Stripe from "stripe";
 
+import { runAfterResponse } from "@/server/background";
 import {
   getCheckoutSessionReadingId,
   grantPremium,
   isReadingId,
 } from "@/server/readings/repository";
 
+import { onPremiumPurchased } from "./purchase-events";
 import { getStripe, isCheckoutSessionId, toStripeFailure } from "./stripe";
 
 /** Checkout 세션 metadata.product — 같은 Stripe 계정의 다른 결제와 구분한다 */
@@ -60,6 +62,9 @@ export async function fulfillCheckoutSession(
 
   switch (outcome.status) {
     case "granted":
+      // 처음 열린 때만 — 웹훅 재전송·결제 복귀 확인이 겹쳐도 매출이 두 번 기록되지 않는다.
+      // 결제 원장·GA4 기록은 응답을 보낸 뒤에 한다 (사용자가 잠금 해제를 기다리지 않게)
+      runAfterResponse(() => onPremiumPurchased(session, readingId));
       return { status: "unlocked", readingId };
     case "already-granted":
       return {

@@ -43,11 +43,19 @@ export function requestGeneratedNames(
 
 export function requestCheckout(
   readingId: string,
-  signal?: AbortSignal,
+  {
+    analytics,
+    signal,
+  }: { analytics?: CheckoutRequest["analytics"]; signal?: AbortSignal } = {},
 ): Promise<ClientResult<CheckoutResponse>> {
   return callApi<CheckoutResponse>("/api/checkout", {
     method: "POST",
-    body: { readingId } satisfies CheckoutRequest,
+    body: {
+      readingId,
+      ...(analytics && (analytics.clientId || analytics.sessionId)
+        ? { analytics }
+        : {}),
+    } satisfies CheckoutRequest,
     signal,
   });
 }

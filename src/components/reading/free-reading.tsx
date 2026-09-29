@@ -1,7 +1,14 @@
 "use client";
 
+import { useEffect } from "react";
+
 import { AdSlot } from "@/components/ads/ad-slot";
 import { Eyebrow } from "@/components/ui/eyebrow";
+import {
+  ANALYTICS_EVENTS,
+  premiumEcommerce,
+  trackOnce,
+} from "@/lib/analytics/track";
 import { formatPrice } from "@/lib/pricing";
 import type { FreeReadingView } from "@/types/reading";
 
@@ -24,6 +31,15 @@ interface FreeReadingProps {
  */
 export function FreeReading({ view, notice }: FreeReadingProps) {
   const checkout = useCheckout(view.readingId);
+
+  // 퍼널 2단계: 무료 결과와 결제 제안을 봤다 (풀이마다 한 번)
+  useEffect(() => {
+    trackOnce(
+      `view_item:${view.readingId}`,
+      ANALYTICS_EVENTS.viewOffer,
+      premiumEcommerce(),
+    );
+  }, [view.readingId]);
   const priceLabel = formatPrice(view.offer);
   const { name } = view;
   const totalNames = view.lockedNameCount + 1;
@@ -89,7 +105,7 @@ export function FreeReading({ view, notice }: FreeReadingProps) {
                 <li key={index}>
                   <button
                     type="button"
-                    onClick={checkout.start}
+                    onClick={() => checkout.start("locked_name")}
                     disabled={checkout.isRedirecting}
                     aria-label={`Name ${index + 2} is locked — unlock for ${priceLabel}`}
                     className="group flex w-full flex-col items-start gap-2 rounded-2xl border border-dashed border-ink/20 bg-white/60 p-5 text-left transition hover:border-vermilion hover:bg-white focus-visible:ring-4 focus-visible:ring-vermilion/20 focus-visible:outline-hidden disabled:cursor-wait"

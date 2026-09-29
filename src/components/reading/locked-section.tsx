@@ -65,7 +65,7 @@ export function LockedSection({
         </p>
         <button
           type="button"
-          onClick={checkout.start}
+          onClick={() => checkout.start("locked_section")}
           disabled={checkout.isRedirecting}
           className="mt-1 inline-flex items-center gap-2 rounded-full border border-vermilion bg-white/90 px-5 py-2.5 text-sm font-semibold text-vermilion transition hover:bg-vermilion hover:text-hanji focus-visible:ring-4 focus-visible:ring-vermilion/25 focus-visible:outline-hidden disabled:cursor-wait disabled:opacity-60"
         >

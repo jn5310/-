@@ -2,6 +2,12 @@
 
 import { useEffect, useState } from "react";
 
+import { SERVER_SIDE_PURCHASE } from "@/lib/analytics/config";
+import {
+  ANALYTICS_EVENTS,
+  premiumEcommerce,
+  trackOnce,
+} from "@/lib/analytics/track";
 import { fetchReading } from "@/lib/api/client";
 import type { ReadingView } from "@/types/reading";
 
@@ -36,6 +42,26 @@ export function ReadingExperience({
   const [timedOut, setTimedOut] = useState(false);
 
   const isWaitingForPayment = view.tier === "free" && checkout === "success";
+
+  // 퍼널 4단계: 결제 완료. 서버 측 전송(Measurement Protocol)이 켜져 있으면 서버가 보내므로 여기서는 보내지 않는다
+  useEffect(() => {
+    if (view.tier !== "premium" || !justUnlocked || SERVER_SIDE_PURCHASE)
+      return;
+    const transactionId = sessionId ?? view.readingId;
+    trackOnce(`purchase:${transactionId}`, ANALYTICS_EVENTS.purchase, {
+      ...premiumEcommerce(),
+      transaction_id: transactionId,
+    });
+  }, [view.tier, view.readingId, justUnlocked, sessionId]);
+
+  useEffect(() => {
+    if (checkout !== "cancelled") return;
+    trackOnce(
+      `checkout_cancel:${view.readingId}`,
+      ANALYTICS_EVENTS.checkoutCancel,
+      premiumEcommerce(),
+    );
+  }, [checkout, view.readingId]);
 
   // 결제 결과를 반영한 뒤에는 주소의 ?checkout·session_id를 지운다 — 새로고침·공유 때 안내가 반복되지 않게
   useEffect(() => {

@@ -125,7 +125,7 @@ export function PaywallCard({
 
       <button
         type="button"
-        onClick={checkout.start}
+        onClick={() => checkout.start("paywall_card")}
         disabled={checkout.isRedirecting}
         aria-busy={checkout.isRedirecting || undefined}
         className={cn(ctaButtonClass, "mt-8 w-full")}

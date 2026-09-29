@@ -144,6 +144,8 @@ export type ReadingResponse = ReadingSuccess | ApiFailure<ReadingErrorCode>;
 
 export interface CheckoutRequest {
   readingId: string;
+  /** 브라우저의 GA4 식별자 — 서버가 보내는 purchase를 같은 사용자·세션으로 묶는다 (선택) */
+  analytics?: { clientId?: string; sessionId?: string };
 }
 
 export type CheckoutErrorCode =

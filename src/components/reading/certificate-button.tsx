@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { secondaryButtonClass } from "@/components/ui/styles";
 import type { CertificateInput } from "@/lib/certificate/content";
+import { ANALYTICS_EVENTS, trackEvent } from "@/lib/analytics/track";
 import { cn } from "@/lib/cn";
 import { downloadBlob } from "@/lib/seal";
 
@@ -36,6 +37,9 @@ export function CertificateButton({
         issuedAt: new Date(issuedAt),
       });
       downloadBlob(file.blob, file.fileName);
+      trackEvent(ANALYTICS_EVENTS.certificateDownload, {
+        renderer: file.renderer,
+      });
       setStatus("idle");
     } catch (error) {
       console.error("[CertificateButton] certificate failed", error);

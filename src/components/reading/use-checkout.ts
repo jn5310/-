@@ -3,10 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { requestCheckout } from "@/lib/api/client";
+import {
+  ANALYTICS_EVENTS,
+  getGaIdentifiers,
+  premiumEcommerce,
+  trackEvent,
+} from "@/lib/analytics/track";
+
+/** 어느 결제 버튼을 눌렀는지 — GA4에서 버튼별 전환율을 비교한다 */
+export type CheckoutPlacement =
+  "paywall_card" | "locked_name" | "locked_section";
 
 export interface CheckoutControls {
   /** Stripe Checkout(결제 페이지)으로 이동한다 */
-  start: () => void;
+  start: (placement: CheckoutPlacement) => void;
   /** 결제 페이지 URL을 받는 중이거나 이동하는 중 */
   isRedirecting: boolean;
   error: string | null;
@@ -31,32 +41,41 @@ export function useCheckout(readingId: string): CheckoutControls {
     return () => window.removeEventListener("pageshow", onPageShow);
   }, []);
 
-  const start = useCallback(() => {
-    if (busy.current) return; // 두 번 눌러 세션이 둘 생기지 않게
-    busy.current = true;
-    setError(null);
-    setIsRedirecting(true);
+  const start = useCallback(
+    (placement: CheckoutPlacement) => {
+      if (busy.current) return; // 두 번 눌러 세션이 둘 생기지 않게
+      busy.current = true;
+      setError(null);
+      setIsRedirecting(true);
 
-    void requestCheckout(readingId)
-      .then((response) => {
-        if (response.ok) {
-          window.location.assign(response.data.url);
-          return; // 페이지를 떠날 때까지 '이동 중'을 유지한다
-        }
-        if (response.error.code === "ALREADY_UNLOCKED") {
-          window.location.reload(); // 다른 탭에서 이미 결제했다 — 열린 풀이를 다시 읽는다
-          return;
-        }
-        busy.current = false;
-        setIsRedirecting(false);
-        setError(response.error.message);
-      })
-      .catch(() => {
-        busy.current = false;
-        setIsRedirecting(false);
-        setError("Checkout couldn’t start. Please try again.");
+      trackEvent(ANALYTICS_EVENTS.beginCheckout, {
+        ...premiumEcommerce(),
+        placement,
       });
-  }, [readingId]);
+
+      void getGaIdentifiers()
+        .then((analytics) => requestCheckout(readingId, { analytics }))
+        .then((response) => {
+          if (response.ok) {
+            window.location.assign(response.data.url);
+            return; // 페이지를 떠날 때까지 '이동 중'을 유지한다
+          }
+          if (response.error.code === "ALREADY_UNLOCKED") {
+            window.location.reload(); // 다른 탭에서 이미 결제했다 — 열린 풀이를 다시 읽는다
+            return;
+          }
+          busy.current = false;
+          setIsRedirecting(false);
+          setError(response.error.message);
+        })
+        .catch(() => {
+          busy.current = false;
+          setIsRedirecting(false);
+          setError("Checkout couldn’t start. Please try again.");
+        });
+    },
+    [readingId],
+  );
 
   return { start, isRedirecting, error };
 }
