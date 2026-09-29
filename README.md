@@ -1,6 +1,7 @@
 # K-Name Studio
 
-한국 문화·K-pop·한국어에 관심 있는 외국인을 위한 **사주(四柱) 기반 한국 이름 추천** 서비스의 기본 구조와 메인 입력 폼입니다.
+한국 문화·K-pop·한국어에 관심 있는 외국인을 위한 **사주(四柱) 기반 한국 이름 추천** 서비스입니다.
+입력 폼 → Gemini 이름 생성 API → 추천 이름 카드와 전통 도장(PNG)까지 한 화면에서 이어집니다.
 UI 문구는 영어이고, 한글·한자를 함께 적어 한국적인 분위기를 살렸습니다.
 
 ## 기술 스택
@@ -43,19 +44,20 @@ src/
 │   │   ├── seal-studio.tsx       # 이름·모양·서체를 고르는 체험 UI
 │   │   └── seal-fonts.ts         # 도장 전용 웹 폰트 프리셋 (next/font)
 │   ├── name-form/            # 메인 입력 폼 (클라이언트 컴포넌트)
-│   │   ├── name-form.tsx         # useForm + zodResolver, 제출 → 요약 화면 전환
+│   │   ├── name-form.tsx         # useForm + zodResolver, 제출 → API 호출 → 결과 화면 전환
 │   │   ├── english-name-field.tsx
 │   │   ├── gender-field.tsx
 │   │   ├── surname-field.tsx     # 대표 성씨 12선 + 직접 입력
 │   │   ├── birth-fields.tsx      # 생년월일 · 출생 시각 · 시각 미상 · 출생지 시간대
 │   │   ├── name-length-field.tsx # 이름 자수 2–4자 (Controller)
-│   │   ├── request-preview.tsx   # 제출된 NameRequest 요약
+│   │   ├── name-results.tsx      # 사주 원국 · 추천 이름 3개 · 글자 풀이 · 도장 미리보기/다운로드
 │   │   └── use-name-form-context.ts
 │   └── ui/                   # Field/FieldGroup, 공통 클래스, Eyebrow, SealMark
 ├── hooks/
 │   ├── use-client-value.ts   # 브라우저 전용 값을 하이드레이션 안전하게 읽기
 │   └── use-korean-seal.ts    # 도장 렌더링·미리보기·다운로드 훅
 ├── lib/
+│   ├── api/generate-name.ts  # 브라우저용 API 클라이언트 (오류 응답 정규화 · fieldErrors 경로 변환)
 │   ├── constants/            # 대표 성씨 데이터, 선택지 문구
 │   ├── saju/
 │   │   ├── four-pillars.ts       # 만세력: 생년월일시 → 사주팔자·오행·음양
@@ -89,6 +91,12 @@ src/
     ├── api.ts                # 이름 생성 API 요청·응답 계약
     └── saju.ts               # 오행 · 천간 · 지지 · 사주팔자 · 원국
 ```
+
+## 화면 흐름
+
+1. 폼을 제출하면 클라이언트 검증을 통과한 `NameRequest`를 `POST /api/generate-name`으로 보냅니다(보통 10–30초, 최대 약 1분).
+2. 성공하면 결과 화면으로 바뀝니다: 사주 원국(시·일·월·연주, 오행 분포) → 추천 이름 3개 → 고른 이름의 글자 풀이·상세 분석 → 그 이름의 **도장 미리보기와 PNG 다운로드**(모양·서체 선택).
+3. 서버 재검증 오류(`VALIDATION_ERROR`)는 해당 입력 필드 옆에 붙이고, 그 밖의 오류는 폼 아래 안내 문구로 보여 줍니다. 결과 화면에서 "Suggest three more"로 같은 입력에 새 이름을 받을 수 있습니다.
 
 ## 폼 설계
 
@@ -241,6 +249,5 @@ curl -X POST http://localhost:3000/api/generate-name \
 
 ## 다음 단계
 
-1. 입력 폼을 API에 연결하고(`name-form.tsx`의 `TODO`), 추천 이름 카드와 도장 생성기를 결과 화면에 이어 붙입니다.
-2. 결제·인증을 도입해 프리미엄 분석 권한을 판정하고, IP·사용자별 요청 제한(rate limit)을 둡니다.
-3. 출생 도시를 받아 경도 기반 진태양시 보정을 적용하고, 동음이자 성씨(정 鄭·丁, 조 趙·曺 등)의 한자·본관 선택 단계를 추가합니다.
+1. 결제·인증을 도입해 프리미엄 분석 권한을 판정하고, IP·사용자별 요청 제한(rate limit)을 둡니다.
+2. 출생 도시를 받아 경도 기반 진태양시 보정을 적용하고, 동음이자 성씨(정 鄭·丁, 조 趙·曺 등)의 한자·본관 선택 단계를 추가합니다.
