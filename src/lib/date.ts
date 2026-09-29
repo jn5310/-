@@ -7,20 +7,43 @@ export function toIsoDate(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-export function getTodayIsoDate(): string {
-  return toIsoDate(new Date());
+/**
+ * 오늘 날짜(YYYY-MM-DD).
+ * @param timeZone 지정하면 그 시간대의 오늘 — 서버에서 출생지 기준으로 판정할 때 쓴다
+ */
+export function getTodayIsoDate(timeZone?: string): string {
+  if (!timeZone) return toIsoDate(new Date());
+
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+/** "YYYY-MM-DD" → 숫자 연·월·일 (형식이 틀리면 null) */
+export function parseIsoDate(
+  value: string,
+): { year: number; month: number; day: number } | null {
+  const match = ISO_DATE_PATTERN.exec(value);
+  if (!match) return null;
+  return {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+  };
 }
 
 /** YYYY-MM-DD 형식이면서 달력에 실제로 존재하는 날짜인지 (예: 2023-02-30 → false) */
 export function isValidIsoDate(value: string): boolean {
-  const match = ISO_DATE_PATTERN.exec(value);
-  if (!match) return false;
+  const parsed = parseIsoDate(value);
+  if (!parsed) return false;
 
-  const [year, month, day] = [
-    Number(match[1]),
-    Number(match[2]),
-    Number(match[3]),
-  ];
+  const { year, month, day } = parsed;
   const date = new Date(Date.UTC(year, month - 1, day));
 
   return (
