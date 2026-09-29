@@ -194,11 +194,10 @@ export function PremiumReading({ view, justUnlocked }: PremiumReadingProps) {
               readingId={view.readingId}
               englishName={view.englishName}
               name={selected}
+              saju={saju}
               favorableElements={favorableElements}
-              dayMaster={saju.dayMaster}
               issuedAt={view.unlockedAt}
-              sealShape={shape}
-              sealFont={SEAL_FONTS[fontId].font}
+              seal={{ shape, font: SEAL_FONTS[fontId].font }}
             />
             <div
               className="flex flex-wrap justify-center gap-2"

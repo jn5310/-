@@ -104,6 +104,11 @@ export default function PrivacyPage() {
         <li>Google (Gemini API) — to generate your names.</li>
         <li>Stripe — to process payments.</li>
         <li>Google AdSense — to show ads on free pages.</li>
+        <li>
+          Google Fonts — our server requests the Korean characters of your new
+          name so your certificate can be printed in the right typeface. Your
+          English name and birth details are not sent.
+        </li>
         <li>Our hosting and database providers — to run the service.</li>
       </ul>
       <p>We do not sell your personal information.</p>

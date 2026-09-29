@@ -1,7 +1,7 @@
 # K-Name Studio
 
 한국 문화·K-pop·한국어에 관심 있는 외국인을 위한 **사주(四柱) 기반 한국 이름 추천** 서비스입니다.
-입력 폼 → Gemini 이름 생성 → 무료 미리보기(이름 1개) → **$3.99 프리미엄**(이름 3개·상세 풀이·도장 PNG·증서 PDF)으로 이어집니다.
+입력 폼 → Gemini 이름 생성 → 무료 미리보기(이름 1개) → **$3.99 프리미엄**(이름 3개·상세 풀이·도장 PNG·공식 이름 증명서 PDF)으로 이어집니다.
 무료 화면은 Google AdSense 광고로, 프리미엄은 광고 없이 운영하는 하이브리드 수익 모델입니다.
 UI 문구는 영어이고, 한글·한자를 함께 적어 한국적인 분위기를 살렸습니다.
 
@@ -14,6 +14,7 @@ UI 문구는 영어이고, 한글·한자를 함께 적어 한국적인 분위�
 | 폼·검증    | React Hook Form 7 + Zod 4 (`@hookform/resolvers`)            |
 | 이름 생성  | Gemini API (`@google/genai`) + 서버 만세력 계산              |
 | 결제       | Stripe Checkout 일시불 (`stripe` v22) + 웹훅                 |
+| PDF        | `@react-pdf/renderer` v4 (벡터) · 캔버스 이미지 PDF(대체)    |
 | 저장소     | 로컬 파일(`.data/kv`) 또는 Upstash Redis(REST)               |
 | 광고       | Google AdSense (무료 화면만, 선택)                           |
 | 폰트       | Noto Sans KR · Noto Serif KR (`next/font/google`, 가변 폰트) |
@@ -56,7 +57,8 @@ src/
 │   │   ├── generate-name/route.ts   # 이름 생성 → 풀이 저장 → 무료 미리보기 (POST)
 │   │   ├── readings/[id]/route.ts   # 풀이 조회 · 결제 복귀 확인 (GET)
 │   │   ├── checkout/route.ts        # Stripe Checkout 세션 생성 (POST)
-│   │   └── stripe-webhook/route.ts  # Stripe 웹훅 — 결제 완료 시 잠금 해제 (POST)
+│   │   ├── stripe-webhook/route.ts  # Stripe 웹훅 — 결제 완료 시 잠금 해제 (POST)
+│   │   └── fonts/subset/route.ts    # 증명서 PDF용 한글 폰트 서브셋 (GET)
 │   ├── reading/[id]/         # 풀이 결과 페이지 (무료/프리미엄) · 결제 후 돌아오는 곳
 │   ├── privacy/ · terms/     # 개인정보처리방침 · 이용약관/환불 (AdSense·Stripe 심사용 초안)
 │   ├── ads.txt/route.ts      # AdSense 게시자 인증 파일
@@ -70,8 +72,13 @@ src/
 │   │   ├── reading-experience.tsx # 무료/프리미엄 전환 · 결제 복귀 후 확인될 때까지 재조회
 │   │   ├── free-reading.tsx      # 무료 미리보기 + 잠긴 영역(가짜 내용 블러) + 광고
 │   │   ├── paywall-card.tsx      # $3.99 결제 카드 · use-checkout.ts(Stripe로 이동)
-│   │   ├── premium-reading.tsx   # 이름 3개 · 상세 풀이 · 도장 PNG · 증서 PDF (광고 없음)
+│   │   ├── premium-reading.tsx   # 이름 3개 · 상세 풀이 · 도장 PNG · 증명서 PDF (광고 없음)
 │   │   └── locked-section.tsx · certificate-button.tsx · lock-icon.tsx
+│   ├── certificate/          # 공식 이름 증명서 PDF 생성기 (react-pdf)
+│   │   ├── certificate-document.tsx # 증명서 문서 컴포넌트: 한지 바탕 · 번개무늬 테두리 · 본문 · 도장
+│   │   ├── certificate-fonts.ts  # 한글 폰트 서브셋 등록 · 한글/한자 줄바꿈 규칙
+│   │   ├── render-vector.tsx     # 도장 PNG + 문서 → PDF Blob
+│   │   └── create-certificate.ts # 벡터 생성 → 실패 시 캔버스 대체
 │   ├── ads/ad-slot.tsx       # AdSense 광고 칸 (환경 변수가 없으면 표시 안 함)
 │   ├── legal/legal-page.tsx  # 정책 문서 공통 틀
 │   ├── seal/                 # 전통 도장 생성기 (클라이언트 컴포넌트)
@@ -92,7 +99,8 @@ src/
 │   └── use-korean-seal.ts    # 도장 렌더링·미리보기·다운로드 훅
 ├── lib/
 │   ├── api/client.ts         # 브라우저용 API 클라이언트 (오류 응답 정규화 · fieldErrors 경로 변환)
-│   ├── certificate/          # 이름 증서: 캔버스 렌더링(render.ts) → JPEG → 의존성 없는 PDF 작성기(pdf.ts)
+│   ├── certificate/          # 증명서 내용(content.ts) · 증명서 ID(certificate-id.ts) · 디자인 값(design.ts)
+│   │                         #   · 캔버스 대체 렌더러(raster.ts) → 의존성 없는 JPEG PDF 작성기(pdf.ts)
 │   ├── pricing.ts            # 프리미엄 가격 $3.99 (결제·표시가 함께 쓰는 단일 값)
 │   ├── ads.ts · site.ts      # AdSense 설정 · 사이트 연락처
 │   ├── constants/            # 대표 성씨 데이터, 선택지 문구
@@ -130,6 +138,7 @@ src/
 │   │   ├── repository.ts         # 풀이 ID 발급·저장·권한 부여·무료/프리미엄 뷰
 │   │   └── service.ts            # 권한에 맞는 풀이 읽기 (+ 결제 복귀 확인)
 │   ├── storage/kv.ts             # 키-값 저장소: 파일(로컬) · Upstash Redis(운영)
+│   ├── fonts/google-subset.ts    # 증명서용 한글 폰트 서브셋 (Google Fonts text=, 메모리 캐시)
 │   ├── http.ts                   # 본문 읽기(크기 제한·원문 바이트)·응답 헬퍼
 │   ├── log.ts                    # 개인 정보 없는 JSON 로그
 │   └── deadline.ts               # 제한 시간 신호
@@ -146,7 +155,7 @@ src/
 2. **무료 미리보기** (`/reading/[id]`): 이름 1개의 한글·영문 발음·한 줄 의미를 보여 줍니다. 나머지 이름 2개, 사주·한자 풀이, 도장·증서는 흐리게 잠겨 있고 결제 카드가 붙습니다. 이 화면과 랜딩 하단에만 광고가 나옵니다.
 3. **결제**: 결제 버튼 → `POST /api/checkout` → Stripe Checkout(호스팅 결제 페이지)에서 $3.99를 결제합니다.
 4. **복귀**: Stripe가 `/reading/[id]?checkout=success&session_id=…`로 돌려보냅니다. 서버가 세션을 Stripe에서 확인해 바로 엽니다. 아직 확정 전이면(지연 결제 수단·일시 오류) 화면이 최대 1분 동안 다시 조회하고, 웹훅이 도착하면 열립니다. 취소하면 `?checkout=cancelled`로 돌아와 안내만 보여 줍니다.
-5. **프리미엄**: 사주 원국, 이름 3개, 글자별 한자·오행, 상세 분석(사주 조화·음령오행·운세), 도장 PNG(모양·서체 선택), 이름 증서 PDF를 광고 없이 보여 줍니다.
+5. **프리미엄**: 사주 원국, 이름 3개, 글자별 한자·오행, 상세 분석(사주 조화·음령오행·운세), 도장 PNG(모양·서체 선택), 공식 이름 증명서 PDF를 광고 없이 보여 줍니다.
 
 서버 재검증 오류(`VALIDATION_ERROR`)는 해당 입력 필드 옆에 붙이고, 그 밖의 오류는 폼 아래 안내 문구로 보여 줍니다.
 
@@ -157,7 +166,7 @@ src/
 | 추천 이름           | 1개 (한글 · 영문 발음 · 한 줄 의미)  | 3개 전체 + 한자                                       |
 | 사주·한자 상세 분석 | 잠김 (블러)                          | 사주 원국 · 오행 · 사주 조화 · 음령오행 · 운세 (영문) |
 | 한국식 도장         | 잠김 (블러) — 랜딩 체험은 미리보기만 | 투명 PNG 다운로드 (사각·원형, 서체 3종)               |
-| 이름 증서           | —                                    | A4 PDF (이름·한자·도장·발급일·증서 번호)              |
+| 이름 증명서         | —                                    | A4 PDF (이름·한자·사주 요약·도장·발급일·증명서 ID)    |
 | 광고                | 있음                                 | 없음                                                  |
 
 ### 잠금은 서버가 결정한다
@@ -165,7 +174,7 @@ src/
 - 무료 응답에는 프리미엄 데이터(나머지 이름·한자·분석·원국)를 **아예 보내지 않습니다.** 잠긴 영역의 흐린 내용은 화면용 가짜 문구라서, 개발자 도구로 블러를 걷어도 실제 결과는 보이지 않습니다.
 - 풀이 ID는 추측할 수 없는 128비트 값이고 URL이 곧 접근 권한입니다(링크를 아는 사람만 볼 수 있음, 검색 노출 차단).
 - 권한은 결제가 확인된 뒤에만 기록됩니다. 웹훅과 결제 복귀 확인은 같은 함수(`fulfillCheckoutSession`)를 쓰고 멱등이라, 둘이 겹치거나 Stripe가 같은 이벤트를 여러 번 보내도 한 번만 열립니다.
-- 증서 PDF는 브라우저에서 만듭니다. 한자·분석 데이터가 결제한 풀이에만 내려오므로, 증서를 만들 수 있는 것도 결제한 사용자뿐입니다.
+- 증명서 PDF는 브라우저에서 만듭니다. 한자·분석 데이터가 결제한 풀이에만 내려오므로, 증명서를 만들 수 있는 것도 결제한 사용자뿐입니다.
 
 ### 저장소와 보존 기간
 
@@ -251,6 +260,26 @@ await downloadKoreanSeal("김서윤", { font: SEAL_FONTS.classic.font });
 - **배치**는 전통 세로쓰기를 따라 오른쪽 열부터 위→아래로 읽습니다. 2자는 두 열, 3자는 오른쪽 열에 성(姓)을 크게 쓰고 왼쪽 열에 이름 두 자를 위아래로, 4자는 2×2입니다. 각 글자는 실제 잉크 경계(`measureText`)를 기준으로 칸을 가득 채우도록 늘리며, 과하게 찌그러지지 않게 가로·세로 배율 차이를 2.1배로 제한합니다.
 - **폰트**: 한글 웹 폰트는 unicode-range 조각으로 나뉘어 있어, 새길 글자가 든 조각만 `document.fonts.load()`로 받은 뒤 그립니다. 송명·가석은 KS X 1001 완성형 2,350자만 담고 있어서, 그 밖의 음절은 11,172자를 모두 갖춘 나눔명조로 이어 그립니다.
 - **질감**은 이름으로 만든 시드로 생성하므로 같은 설정이면 미리보기와 다운로드 파일이 항상 같습니다.
+
+## 공식 한국어 이름 증명서 (PDF)
+
+프리미엄 풀이 화면에서 **Download certificate (PDF)** 를 누르면, 고른 이름과 도장 설정으로 A4 가로 한 장짜리 증명서를 브라우저에서 바로 만들어 내려받습니다(`korean-name-certificate-[romanization].pdf`).
+
+| 영역      | 내용                                                                                                                  |
+| --------- | --------------------------------------------------------------------------------------------------------------------- |
+| 테두리    | 인주색 이중선 · 번개무늬(回紋) 띠 · 모서리 亞자 장식 · 먹색 안쪽 이중선, 한지 결(증명서 ID로 고정한 섬유 무늬)        |
+| 머리글    | 색동 띠 · 名 낙관 · **Official Certificate of Korean Name** · 공식 한국어 이름 증명서                                 |
+| 본문      | 영문 본명 → 한글 이름 · 한자 · 로마자 표기 · 이름의 의미 한 문장                                                      |
+| 한자 풀이 | 글자마다 한자 · 음 · 영문 뜻 · 자원오행                                                                               |
+| 사주 요약 | 시·일·월·연주 · 일간 · 용신(보완 오행) · 오행 분포 · 사주 조화 분석 요약(영문)                                        |
+| 아래      | 발급일(결제일) · 고유 증명서 ID · 발급처 서명란 · **오른쪽 아래 도장**(화면에서 고른 모양·서체) · 문화·개인 용도 안내 |
+
+- **생성 방식**: `@react-pdf/renderer`로 벡터 PDF를 만듭니다. 글자를 선택·검색할 수 있고 확대·인쇄해도 선명합니다. 생성 코드는 버튼을 누를 때만 불러와서 결과 화면을 무겁게 하지 않습니다.
+- **한글 폰트**: Noto Serif KR · Noto Sans KR 원본은 10–20MB라, 증명서에 쓰는 글자만 담은 서브셋을 `GET /api/fonts/subset`에서 받습니다. 이 API는 서버가 Google Fonts(`text=`)에 대신 요청하므로 이용자 IP가 Google로 가지 않고, 결과를 메모리와 브라우저에 1년 동안 캐시합니다. 라틴 문자는 기본 묶음 전체를 요청해서 영문 본명이 Google로 전달되지 않습니다.
+- **대체 경로**: 폰트 서버에 닿지 못하는 등으로 벡터 생성이 실패하면, 페이지에 이미 올라온 웹 폰트로 같은 레이아웃을 캔버스에 그려 이미지 PDF(200dpi)로 대신 만듭니다.
+- **증명서 ID** (`KN-2026-XXXX-XXXX-XXXX`): 풀이 ID와 고른 이름의 SHA-256에서 만듭니다. 같은 이름이면 몇 번을 받아도 같은 번호이고, 증명서를 공유해도 풀이 링크를 거꾸로 알아낼 수 없습니다.
+- 문구는 `src/lib/certificate/content.ts`의 `CERTIFICATE_TEXT`, 색·테두리는 `src/lib/certificate/design.ts`에서 바꿉니다. 두 렌더러가 같은 값을 씁니다.
+- 제목에 "Official"이 들어가지만 법적 효력이 있는 문서는 아니므로, 아래쪽에 "not a legal name registration" 문구를 넣었습니다.
 
 ## 이름 생성 API — `POST /api/generate-name`
 

@@ -3,57 +3,42 @@
 import { useState } from "react";
 
 import { secondaryButtonClass } from "@/components/ui/styles";
+import type { CertificateInput } from "@/lib/certificate/content";
 import { cn } from "@/lib/cn";
-import { downloadBlob, type SealFont, type SealShape } from "@/lib/seal";
-import type { GeneratedName } from "@/types/api";
-import type { FiveElement, SajuReading } from "@/types/saju";
+import { downloadBlob } from "@/lib/seal";
 
-interface CertificateButtonProps {
-  readingId: string;
-  englishName: string;
-  name: GeneratedName;
-  favorableElements: FiveElement[];
-  dayMaster: SajuReading["dayMaster"];
-  /** 결제(잠금 해제) 시각 — 증서 발급일로 쓴다 */
+type Status = "idle" | "working" | "error";
+
+interface CertificateButtonProps extends Omit<CertificateInput, "issuedAt"> {
+  /** 잠금 해제(결제) 시각 ISO 문자열 — 증명서 발급일로 쓴다 */
   issuedAt: string;
-  /** 화면에서 고른 도장 모양·서체를 증서에도 찍는다 */
-  sealShape: SealShape;
-  sealFont: SealFont;
   className?: string;
 }
 
-/** 프리미엄: 이름 증서 PDF 내려받기 (PDF 생성 코드는 누를 때 불러온다) */
+/**
+ * 프리미엄: 공식 한국어 이름 증명서 PDF 내려받기.
+ * PDF는 브라우저에서 바로 만든다 — 생성 코드(react-pdf)는 버튼을 누를 때 불러온다.
+ */
 export function CertificateButton({
-  readingId,
-  englishName,
-  name,
-  favorableElements,
-  dayMaster,
   issuedAt,
-  sealShape,
-  sealFont,
   className,
+  ...input
 }: CertificateButtonProps) {
-  const [status, setStatus] = useState<"idle" | "working" | "error">("idle");
+  const [status, setStatus] = useState<Status>("idle");
 
   const handleClick = async () => {
     setStatus("working");
     try {
-      const { createCertificatePdf, getCertificateFileName } =
-        await import("@/lib/certificate");
-      const blob = await createCertificatePdf({
-        englishName,
-        name,
-        favorableElements,
-        dayMaster,
-        certificateId: readingId,
+      const { createCertificate } =
+        await import("@/components/certificate/create-certificate");
+      const file = await createCertificate({
+        ...input,
         issuedAt: new Date(issuedAt),
-        seal: { shape: sealShape, font: sealFont },
       });
-      downloadBlob(blob, getCertificateFileName(name.romanization));
+      downloadBlob(file.blob, file.fileName);
       setStatus("idle");
     } catch (error) {
-      console.error("[CertificateButton] PDF failed", error);
+      console.error("[CertificateButton] certificate failed", error);
       setStatus("error");
     }
   };
@@ -78,7 +63,7 @@ export function CertificateButton({
           lang="ko"
           className="font-serif font-normal text-ink-muted"
         >
-          증서 받기
+          증명서 받기
         </span>
       </button>
       <p
