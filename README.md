@@ -1,7 +1,8 @@
 # K-Name Studio
 
 한국 문화·K-pop·한국어에 관심 있는 외국인을 위한 **사주(四柱) 기반 한국 이름 추천** 서비스입니다.
-입력 폼 → Gemini 이름 생성 API → 추천 이름 카드와 전통 도장(PNG)까지 한 화면에서 이어집니다.
+입력 폼 → Gemini 이름 생성 → 무료 미리보기(이름 1개) → **$3.99 프리미엄**(이름 3개·상세 풀이·도장 PNG·증서 PDF)으로 이어집니다.
+무료 화면은 Google AdSense 광고로, 프리미엄은 광고 없이 운영하는 하이브리드 수익 모델입니다.
 UI 문구는 영어이고, 한글·한자를 함께 적어 한국적인 분위기를 살렸습니다.
 
 ## 기술 스택
@@ -12,52 +13,88 @@ UI 문구는 영어이고, 한글·한자를 함께 적어 한국적인 분위�
 | 스타일     | Tailwind CSS v4 (`globals.css`에 CSS-first 테마)             |
 | 폼·검증    | React Hook Form 7 + Zod 4 (`@hookform/resolvers`)            |
 | 이름 생성  | Gemini API (`@google/genai`) + 서버 만세력 계산              |
+| 결제       | Stripe Checkout 일시불 (`stripe` v22) + 웹훅                 |
+| 저장소     | 로컬 파일(`.data/kv`) 또는 Upstash Redis(REST)               |
+| 광고       | Google AdSense (무료 화면만, 선택)                           |
 | 폰트       | Noto Sans KR · Noto Serif KR (`next/font/google`, 가변 폰트) |
 
 ## 시작하기
 
 ```bash
 npm install        # Node.js 20.9 이상
-cp .env.example .env.local   # GEMINI_API_KEY 입력
+cp .env.example .env.local   # Windows cmd: copy .env.example .env.local
+                             # GEMINI_API_KEY · STRIPE_SECRET_KEY(sk_test_…) 입력
 npm run dev        # http://localhost:3000
 npm run build      # 프로덕션 빌드
 npm run lint       # ESLint (eslint-config-next)
 npm run typecheck  # 라우트 타입 생성 후 tsc --noEmit
 ```
 
-> `package-lock.json`은 첫 `npm install` 때 생성됩니다.
+> `package-lock.json`은 첫 `npm install` 때 생성됩니다. 로컬 풀이 데이터는 `.data/kv`에 저장됩니다(커밋되지 않음).
+
+### 결제 테스트 (Stripe 테스트 모드)
+
+1. [Stripe 대시보드](https://dashboard.stripe.com/test/apikeys)의 테스트 비밀 키(`sk_test_…`)를 `STRIPE_SECRET_KEY`에 넣고 `npm run dev`를 다시 켭니다.
+2. 이름을 만든 뒤 무료 미리보기에서 **Unlock everything — $3.99**를 누르고, 테스트 카드 `4242 4242 4242 4242`(만료일은 미래 아무 날짜, CVC 아무 3자리)로 결제합니다.
+3. 결제가 끝나면 `/reading/[id]`로 돌아와 바로 열립니다. 돌아온 URL의 `session_id`로 서버가 Stripe에 결제를 직접 확인하므로, **웹훅 없이도 로컬에서 끝까지 테스트할 수 있습니다.**
+4. 웹훅까지 확인하려면 [Stripe CLI](https://docs.stripe.com/stripe-cli)로 이벤트를 로컬에 전달합니다.
+
+   ```bash
+   stripe login
+   stripe listen --forward-to localhost:3000/api/stripe-webhook
+   # 출력된 whsec_…를 .env.local의 STRIPE_WEBHOOK_SECRET에 넣고 dev 서버를 다시 켠다
+   ```
+
+   결제하면 터미널에 `checkout.session.completed → 200`이 찍히고, 서버 로그에 `"event":"unlocked"`(이미 열렸으면 `already-unlocked`)가 남습니다.
 
 ## 폴더 구조
 
 ```
 src/
 ├── app/
-│   ├── api/generate-name/route.ts  # 이름 생성 API (POST)
+│   ├── api/
+│   │   ├── generate-name/route.ts   # 이름 생성 → 풀이 저장 → 무료 미리보기 (POST)
+│   │   ├── readings/[id]/route.ts   # 풀이 조회 · 결제 복귀 확인 (GET)
+│   │   ├── checkout/route.ts        # Stripe Checkout 세션 생성 (POST)
+│   │   └── stripe-webhook/route.ts  # Stripe 웹훅 — 결제 완료 시 잠금 해제 (POST)
+│   ├── reading/[id]/         # 풀이 결과 페이지 (무료/프리미엄) · 결제 후 돌아오는 곳
+│   ├── privacy/ · terms/     # 개인정보처리방침 · 이용약관/환불 (AdSense·Stripe 심사용 초안)
+│   ├── ads.txt/route.ts      # AdSense 게시자 인증 파일
 │   ├── layout.tsx            # 폰트·메타데이터·뷰포트
 │   ├── page.tsx              # 랜딩 페이지 (섹션 조합)
 │   ├── globals.css           # 디자인 토큰(한지·먹·인주·오방색) + 커스텀 유틸리티
 │   └── icon.svg              # 낙관(도장) 모티프 파비콘
 ├── components/
 │   ├── landing/              # 헤더 · 히어로 · 작명 원리 · 스튜디오 · 이름 도장 · 푸터 (서버 컴포넌트)
+│   ├── reading/              # 풀이 화면 (클라이언트 컴포넌트)
+│   │   ├── reading-experience.tsx # 무료/프리미엄 전환 · 결제 복귀 후 확인될 때까지 재조회
+│   │   ├── free-reading.tsx      # 무료 미리보기 + 잠긴 영역(가짜 내용 블러) + 광고
+│   │   ├── paywall-card.tsx      # $3.99 결제 카드 · use-checkout.ts(Stripe로 이동)
+│   │   ├── premium-reading.tsx   # 이름 3개 · 상세 풀이 · 도장 PNG · 증서 PDF (광고 없음)
+│   │   └── locked-section.tsx · certificate-button.tsx · lock-icon.tsx
+│   ├── ads/ad-slot.tsx       # AdSense 광고 칸 (환경 변수가 없으면 표시 안 함)
+│   ├── legal/legal-page.tsx  # 정책 문서 공통 틀
 │   ├── seal/                 # 전통 도장 생성기 (클라이언트 컴포넌트)
 │   │   ├── korean-seal.tsx       # 미리보기 캔버스 + 투명 PNG 다운로드
-│   │   ├── seal-studio.tsx       # 이름·모양·서체를 고르는 체험 UI
+│   │   ├── seal-studio.tsx       # 랜딩의 체험 UI (미리보기만 — PNG는 프리미엄)
 │   │   └── seal-fonts.ts         # 도장 전용 웹 폰트 프리셋 (next/font)
 │   ├── name-form/            # 메인 입력 폼 (클라이언트 컴포넌트)
-│   │   ├── name-form.tsx         # useForm + zodResolver, 제출 → API 호출 → 결과 화면 전환
+│   │   ├── name-form.tsx         # useForm + zodResolver, 제출 → API 호출 → /reading/[id]로 이동
 │   │   ├── english-name-field.tsx
 │   │   ├── gender-field.tsx
 │   │   ├── surname-field.tsx     # 대표 성씨 12선 + 직접 입력
 │   │   ├── birth-fields.tsx      # 생년월일 · 출생 시각 · 시각 미상 · 출생지 시간대
 │   │   ├── name-length-field.tsx # 이름 자수 2–4자 (Controller)
-│   │   ├── name-results.tsx      # 사주 원국 · 추천 이름 3개 · 글자 풀이 · 도장 미리보기/다운로드
 │   │   └── use-name-form-context.ts
 │   └── ui/                   # Field/FieldGroup, 공통 클래스, Eyebrow, SealMark
 ├── hooks/
 │   ├── use-client-value.ts   # 브라우저 전용 값을 하이드레이션 안전하게 읽기
 │   └── use-korean-seal.ts    # 도장 렌더링·미리보기·다운로드 훅
 ├── lib/
-│   ├── api/generate-name.ts  # 브라우저용 API 클라이언트 (오류 응답 정규화 · fieldErrors 경로 변환)
+│   ├── api/client.ts         # 브라우저용 API 클라이언트 (오류 응답 정규화 · fieldErrors 경로 변환)
+│   ├── certificate/          # 이름 증서: 캔버스 렌더링(render.ts) → JPEG → 의존성 없는 PDF 작성기(pdf.ts)
+│   ├── pricing.ts            # 프리미엄 가격 $3.99 (결제·표시가 함께 쓰는 단일 값)
+│   ├── ads.ts · site.ts      # AdSense 설정 · 사이트 연락처
 │   ├── constants/            # 대표 성씨 데이터, 선택지 문구
 │   ├── saju/
 │   │   ├── four-pillars.ts       # 만세력: 생년월일시 → 사주팔자·오행·음양
@@ -84,19 +121,78 @@ src/
 │   │   ├── gemini.ts             # @google/genai 어댑터·환경 설정
 │   │   ├── hanja.ts              # 한자 음·인명용 여부 조회 (hanja-readings.ts: Unihan 생성 데이터)
 │   │   └── errors.ts             # 오류 코드 ↔ HTTP 상태·사용자 문구
-│   ├── http.ts                   # JSON 본문 읽기(크기 제한)·응답 헬퍼
+│   ├── payments/
+│   │   ├── checkout.ts           # Checkout 세션 생성 (success_url·cancel_url·metadata)
+│   │   ├── fulfillment.ts        # 결제 확인 → 프리미엄 잠금 해제 (멱등, 웹훅·결제 복귀 공용)
+│   │   ├── stripe.ts             # Stripe 클라이언트·키 검증
+│   │   └── errors.ts · respond.ts
+│   ├── readings/
+│   │   ├── repository.ts         # 풀이 ID 발급·저장·권한 부여·무료/프리미엄 뷰
+│   │   └── service.ts            # 권한에 맞는 풀이 읽기 (+ 결제 복귀 확인)
+│   ├── storage/kv.ts             # 키-값 저장소: 파일(로컬) · Upstash Redis(운영)
+│   ├── http.ts                   # 본문 읽기(크기 제한·원문 바이트)·응답 헬퍼
+│   ├── log.ts                    # 개인 정보 없는 JSON 로그
 │   └── deadline.ts               # 제한 시간 신호
 └── types/
     ├── name.ts               # 폼 값 · 추천 요청 인터페이스
-    ├── api.ts                # 이름 생성 API 요청·응답 계약
+    ├── api.ts                # API 요청·응답 계약 (이름 생성 · 풀이 조회 · 결제)
+    ├── reading.ts            # 무료/프리미엄 풀이 뷰
     └── saju.ts               # 오행 · 천간 · 지지 · 사주팔자 · 원국
 ```
 
 ## 화면 흐름
 
-1. 폼을 제출하면 클라이언트 검증을 통과한 `NameRequest`를 `POST /api/generate-name`으로 보냅니다(보통 10–30초, 최대 약 1분).
-2. 성공하면 결과 화면으로 바뀝니다: 사주 원국(시·일·월·연주, 오행 분포) → 추천 이름 3개 → 고른 이름의 글자 풀이·상세 분석 → 그 이름의 **도장 미리보기와 PNG 다운로드**(모양·서체 선택).
-3. 서버 재검증 오류(`VALIDATION_ERROR`)는 해당 입력 필드 옆에 붙이고, 그 밖의 오류는 폼 아래 안내 문구로 보여 줍니다. 결과 화면에서 "Suggest three more"로 같은 입력에 새 이름을 받을 수 있습니다.
+1. **입력**: 폼을 제출하면 `POST /api/generate-name`이 이름 3개와 상세 분석을 만들어 서버에 **풀이(reading)** 로 저장하고, 무료 미리보기만 돌려줍니다(보통 10–30초, 최대 약 1분).
+2. **무료 미리보기** (`/reading/[id]`): 이름 1개의 한글·영문 발음·한 줄 의미를 보여 줍니다. 나머지 이름 2개, 사주·한자 풀이, 도장·증서는 흐리게 잠겨 있고 결제 카드가 붙습니다. 이 화면과 랜딩 하단에만 광고가 나옵니다.
+3. **결제**: 결제 버튼 → `POST /api/checkout` → Stripe Checkout(호스팅 결제 페이지)에서 $3.99를 결제합니다.
+4. **복귀**: Stripe가 `/reading/[id]?checkout=success&session_id=…`로 돌려보냅니다. 서버가 세션을 Stripe에서 확인해 바로 엽니다. 아직 확정 전이면(지연 결제 수단·일시 오류) 화면이 최대 1분 동안 다시 조회하고, 웹훅이 도착하면 열립니다. 취소하면 `?checkout=cancelled`로 돌아와 안내만 보여 줍니다.
+5. **프리미엄**: 사주 원국, 이름 3개, 글자별 한자·오행, 상세 분석(사주 조화·음령오행·운세), 도장 PNG(모양·서체 선택), 이름 증서 PDF를 광고 없이 보여 줍니다.
+
+서버 재검증 오류(`VALIDATION_ERROR`)는 해당 입력 필드 옆에 붙이고, 그 밖의 오류는 폼 아래 안내 문구로 보여 줍니다.
+
+## 수익화 — 프리미엄 결제 + 광고
+
+| 구분                | 무료                                 | 프리미엄 ($3.99 일시불)                               |
+| ------------------- | ------------------------------------ | ----------------------------------------------------- |
+| 추천 이름           | 1개 (한글 · 영문 발음 · 한 줄 의미)  | 3개 전체 + 한자                                       |
+| 사주·한자 상세 분석 | 잠김 (블러)                          | 사주 원국 · 오행 · 사주 조화 · 음령오행 · 운세 (영문) |
+| 한국식 도장         | 잠김 (블러) — 랜딩 체험은 미리보기만 | 투명 PNG 다운로드 (사각·원형, 서체 3종)               |
+| 이름 증서           | —                                    | A4 PDF (이름·한자·도장·발급일·증서 번호)              |
+| 광고                | 있음                                 | 없음                                                  |
+
+### 잠금은 서버가 결정한다
+
+- 무료 응답에는 프리미엄 데이터(나머지 이름·한자·분석·원국)를 **아예 보내지 않습니다.** 잠긴 영역의 흐린 내용은 화면용 가짜 문구라서, 개발자 도구로 블러를 걷어도 실제 결과는 보이지 않습니다.
+- 풀이 ID는 추측할 수 없는 128비트 값이고 URL이 곧 접근 권한입니다(링크를 아는 사람만 볼 수 있음, 검색 노출 차단).
+- 권한은 결제가 확인된 뒤에만 기록됩니다. 웹훅과 결제 복귀 확인은 같은 함수(`fulfillCheckoutSession`)를 쓰고 멱등이라, 둘이 겹치거나 Stripe가 같은 이벤트를 여러 번 보내도 한 번만 열립니다.
+- 증서 PDF는 브라우저에서 만듭니다. 한자·분석 데이터가 결제한 풀이에만 내려오므로, 증서를 만들 수 있는 것도 결제한 사용자뿐입니다.
+
+### 저장소와 보존 기간
+
+| 키                   | 내용                                                                   | 보존                             |
+| -------------------- | ---------------------------------------------------------------------- | -------------------------------- |
+| `reading:{id}`       | 생성 결과 전체 (영문 이름·원국 포함)                                   | 무료 30일 → 결제 시 400일로 연장 |
+| `entitlement:{id}`   | 결제 권한 (세션 ID·PaymentIntent·금액 — 이메일·카드 정보는 저장 안 함) | 400일                            |
+| `checkout:{세션 ID}` | 이 풀이를 위해 만든 Checkout 세션 (결제 복귀 위조 방지)                | 2일                              |
+
+- 로컬(`npm run dev`)은 `.data/kv`의 파일에 저장합니다. 파일 이름은 키를 16진수로 바꿔 만들어 경로 조작을 막습니다.
+- **Vercel 같은 서버리스에서는 Upstash Redis가 필요합니다.** 인스턴스마다 파일이 따로라 결제한 풀이가 열리지 않을 수 있어서, `VERCEL` 환경에서 Upstash 설정이 없으면 파일로 넘어가지 않고 설정 오류를 냅니다.
+
+### Stripe 운영 설정
+
+1. 대시보드에서 운영 비밀 키(`sk_live_…`)를 `STRIPE_SECRET_KEY`로, 사이트 주소를 `APP_URL`로 지정합니다.
+2. **개발자 › 웹훅 › 엔드포인트 추가**: URL `https://<도메인>/api/stripe-webhook`, 이벤트 `checkout.session.completed` · `checkout.session.async_payment_succeeded` · `checkout.session.async_payment_failed`. 서명 비밀(`whsec_…`)을 `STRIPE_WEBHOOK_SECRET`에 넣습니다.
+3. (선택) 상품을 만들어 `STRIPE_PRODUCT_ID`로 지정하면 결제 내역이 한 상품으로 모입니다. 금액은 항상 코드(`src/lib/pricing.ts`)의 $3.99를 씁니다. 가격을 바꾸려면 이 파일만 고칩니다.
+4. 설정 › 이메일에서 **성공한 결제 영수증**을 켜 두면 구매자에게 영수증이 갑니다.
+5. 로그의 `duplicate-payment`(같은 풀이를 두 번 결제)와 `paid-reading-missing`(결제했는데 풀이가 만료)은 환불 대상입니다. 대시보드에서 환불합니다.
+
+### Google AdSense
+
+- `NEXT_PUBLIC_ADSENSE_CLIENT_ID`(`ca-pub-…`)와 광고 단위 ID(`NEXT_PUBLIC_ADSENSE_SLOT_LANDING` · `_READING`)를 넣으면 광고가 나옵니다. 값이 없으면 광고 코드를 싣지 않고, 개발 중에는 광고 자리만 점선으로 표시합니다. 개발·미리보기 빌드는 `data-adtest="on"`으로 테스트 광고만 요청합니다.
+- **배치**: 랜딩 맨 아래(입력 폼과 떨어진 곳), 무료 미리보기 맨 아래(결제 버튼과 떨어진 곳) 두 곳뿐입니다. 결제한 풀이 화면에는 광고 스크립트를 아예 불러오지 않습니다. 광고 자리를 미리 잡아 레이아웃 이동(CLS)을 막고, 채워지지 않으면 자리째 숨깁니다.
+- **자동 광고(Auto ads)는 켜지 마세요.** 무료와 프리미엄이 같은 URL(`/reading/[id]`)이라 자동 광고를 켜면 결제한 사용자에게도 광고가 나올 수 있습니다. 수동 광고 단위만 씁니다.
+- `/ads.txt`는 게시자 ID로 자동 생성됩니다(`google.com, pub-…, DIRECT, f08c47fec0942fa0`).
+- 승인 준비: 개인정보처리방침(`/privacy`, 광고 쿠키·Google 파트너 사이트 안내 포함)과 이용약관·환불(`/terms`) 초안이 있습니다. 사업자 정보·연락처(`NEXT_PUBLIC_SUPPORT_EMAIL`)를 채우고 **법률 검토를 받은 뒤** 공개하세요. EEA·영국·스위스 방문자를 위해 AdSense › 개인 정보 보호 및 메시지에서 Google 인증 동의 메시지(CMP)를 켭니다.
 
 ## 폼 설계
 
@@ -169,6 +265,17 @@ await downloadKoreanSeal("김서윤", { font: SEAL_FONTS.classic.font });
 | `GEMINI_TIMEOUT_MS`     |      | `50000`               | 요청 하나(재시도 포함)의 제한 시간, 10000–55000       |
 | `GEMINI_THINKING_LEVEL` |      | 모델 기본값           | `minimal`·`low`·`medium`·`high` — Gemini 3 계열에서만 |
 
+결제·저장소·광고 변수는 [`.env.example`](.env.example)에 설명이 있습니다.
+
+| 변수                                                                                                      | 필수     | 설명                                                           |
+| --------------------------------------------------------------------------------------------------------- | -------- | -------------------------------------------------------------- |
+| `STRIPE_SECRET_KEY`                                                                                       | ✓ (결제) | `sk_test_…` / `sk_live_…`                                      |
+| `STRIPE_WEBHOOK_SECRET`                                                                                   | ✓ (웹훅) | `whsec_…` — 로컬은 `stripe listen`, 운영은 대시보드 엔드포인트 |
+| `STRIPE_PRODUCT_ID` · `APP_URL`                                                                           |          | 대시보드 상품 ID · 결제 후 돌아올 사이트 주소(운영 필수)       |
+| `UPSTASH_REDIS_REST_URL` · `UPSTASH_REDIS_REST_TOKEN`                                                     | 서버리스 | 풀이 저장소 (없으면 `.data/kv` 파일)                           |
+| `NEXT_PUBLIC_ADSENSE_CLIENT_ID` · `NEXT_PUBLIC_ADSENSE_SLOT_LANDING` · `NEXT_PUBLIC_ADSENSE_SLOT_READING` |          | AdSense (없으면 광고 없음)                                     |
+| `NEXT_PUBLIC_SUPPORT_EMAIL`                                                                               | 운영     | 고객 문의 이메일 (푸터·정책 문서)                              |
+
 > **개인 정보**: 영문 이름과 생년월일시가 Gemini로 전송됩니다. 무료 등급 키에서는 요청 내용이 Google 제품 개선에 쓰일 수 있으므로, 운영에서는 결제를 연결한 키나 Vertex AI를 쓰고 이용자에게 알립니다.
 
 ### 요청·응답
@@ -182,29 +289,55 @@ curl -X POST http://localhost:3000/api/generate-name \
        "nameLength":3}'
 ```
 
+응답은 **무료 미리보기**입니다. 전체 결과는 서버에 저장되고, 결제 후 `GET /api/readings/:id`로만 나갑니다.
+
 ```jsonc
 {
   "ok": true,
   "data": {
-    "names": [
-      {
-        "hangul": "김서윤",
-        "romanization": "Kim Seo-yun",
-        "hanja": "金瑞允",
-        "characters": [
-          { "hangul": "김", "hanja": "金", "meaning": "gold", "element": "metal", "soundElement": "wood", "isSurname": true },
-          { "hangul": "서", "hanja": "瑞", "meaning": "auspicious", "element": "metal", "soundElement": "metal", "isSurname": false },
-          { "hangul": "윤", "hanja": "允", "meaning": "sincere", "element": "earth", "soundElement": "earth", "isSurname": false }
-        ],
-        "summary": "…", // 무료: 영문 한 줄 요약
-        "premium": { "sajuHarmony": "…", "soundHarmony": "…", "fortune": "…" } // 프리미엄: 영문 상세 분석
-      }
-      // … 모두 3개
-    ],
-    "favorableElements": ["water", "wood"], // 용신·희신
-    "saju": { "chart": { "year": { "hanja": "戊寅", … }, … }, "elementBalance": { … }, "notes": ["dst-removed"] }
+    "tier": "free",
+    "readingId": "k7x2m9qadr4t5vwbnc3e6fhjpl", // 풀이 페이지: /reading/{readingId}
+    "englishName": "Emily Johnson",
+    "createdAt": "2026-09-29T09:45:00.000Z",
+    "name": {
+      "hangul": "김서윤",
+      "romanization": "Kim Seo-yun",
+      "summary": "An auspicious and sincere name that carries calm, steady energy.",
+    },
+    "lockedNameCount": 2,
+    "offer": { "amount": 399, "currency": "usd" },
   },
-  "meta": { "requestId": "…", "model": "gemini-3.5-flash", "generatedAt": "…", "durationMs": 14210, "attempts": 1 }
+  "meta": {
+    "requestId": "…",
+    "model": "gemini-3.5-flash",
+    "generatedAt": "…",
+    "durationMs": 14210,
+    "attempts": 1,
+  },
+}
+```
+
+결제한 풀이(`GET /api/readings/:id` → `"tier": "premium"`)의 `result`에는 이름 3개가 모두 들어 있습니다.
+
+```jsonc
+{
+  "names": [
+    {
+      "hangul": "김서윤",
+      "romanization": "Kim Seo-yun",
+      "hanja": "金瑞允",
+      "characters": [
+        { "hangul": "김", "hanja": "金", "meaning": "gold", "element": "metal", "soundElement": "wood", "isSurname": true },
+        { "hangul": "서", "hanja": "瑞", "meaning": "auspicious", "element": "metal", "soundElement": "metal", "isSurname": false },
+        { "hangul": "윤", "hanja": "允", "meaning": "sincere", "element": "earth", "soundElement": "earth", "isSurname": false }
+      ],
+      "summary": "…",
+      "premium": { "sajuHarmony": "…", "soundHarmony": "…", "fortune": "…" }
+    }
+    // … 모두 3개
+  ],
+  "favorableElements": ["water", "wood"], // 용신·희신
+  "saju": { "chart": { "year": { "hanja": "戊寅", … }, … }, "elementBalance": { … }, "notes": ["dst-removed"] }
 }
 ```
 
@@ -218,7 +351,15 @@ curl -X POST http://localhost:3000/api/generate-name \
 | `RATE_LIMITED` · `UPSTREAM_UNAVAILABLE`                         | 503 + `Retry-After` | Gemini 429·5xx·네트워크 오류가 재시도 후에도 이어짐 |
 | `INVALID_MODEL_OUTPUT` · `UPSTREAM_ERROR`                       | 502                 | 응답이 3번 모두 규칙 위반 / 그 밖의 Gemini 오류     |
 | `TIMEOUT`                                                       | 504                 | 제한 시간 초과                                      |
-| `CONFIGURATION_ERROR` · `INTERNAL_ERROR`                        | 500                 | API 키·모델 설정 문제 / 예기치 못한 오류            |
+| `CONFIGURATION_ERROR` · `INTERNAL_ERROR`                        | 500                 | API 키·모델·저장소 설정 문제 / 예기치 못한 오류     |
+
+### 풀이 조회 · 결제 API
+
+| API                                       | 요청                      | 응답 · 주요 오류                                                                                                                          |
+| ----------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/readings/:id[?session_id=cs_…]` | —                         | `ReadingView` (무료/프리미엄). `session_id`가 있으면 결제를 확인해 연다 · `READING_NOT_FOUND` 404                                         |
+| `POST /api/checkout`                      | `{ "readingId": "…" }`    | `{ url }` (Stripe 결제 페이지) · `READING_NOT_FOUND` 404 · `ALREADY_UNLOCKED` 409 · `PAYMENT_UNAVAILABLE` 503 · `CONFIGURATION_ERROR` 500 |
+| `POST /api/stripe-webhook`                | Stripe 이벤트 (서명 필수) | 200 `{ received: true }` · 서명 오류 400 · 처리 실패 500(Stripe가 재전송)                                                                 |
 
 ### 처리 흐름
 
@@ -245,9 +386,9 @@ curl -X POST http://localhost:3000/api/generate-name \
    - 제한 시간(본문을 읽기 전부터 잼)이 지나거나 클라이언트가 연결을 끊으면 진행 중인 요청도 끊습니다.
    - 시도마다 결과 코드·걸린 시간·토큰 사용량(사고 토큰 포함)을 JSON 로그로 남깁니다. 개인 정보는 남기지 않습니다.
 
-> **프리미엄 분석**은 결제·인증을 붙이기 전까지 모든 응답에 들어 있습니다. 연동한 뒤에는 `route.ts`에서 권한을 확인해 `premium`을 `null`로 보내야 합니다. 화면에서 숨기는 것만으로는 보호되지 않습니다.
-
 ## 다음 단계
 
-1. 결제·인증을 도입해 프리미엄 분석 권한을 판정하고, IP·사용자별 요청 제한(rate limit)을 둡니다.
-2. 출생 도시를 받아 경도 기반 진태양시 보정을 적용하고, 동음이자 성씨(정 鄭·丁, 조 趙·曺 등)의 한자·본관 선택 단계를 추가합니다.
+1. IP별 요청 제한(rate limit)으로 이름 생성 API의 Gemini 비용 남용을 막습니다(예: Upstash Ratelimit).
+2. 환불·분쟁(`charge.refunded` · `charge.dispute.created`) 웹훅으로 권한을 회수하고, 구매자 이메일로 풀이 링크를 다시 보내는 "구매 복구"를 추가합니다.
+3. 판매 지역에 따라 Stripe Tax(`automatic_tax`)로 부가세를 처리합니다.
+4. 출생 도시를 받아 경도 기반 진태양시 보정을 적용하고, 동음이자 성씨(정 鄭·丁, 조 趙·曺 등)의 한자·본관 선택 단계를 추가합니다.

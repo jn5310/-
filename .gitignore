@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# local reading store (npm run dev) — contains personal data
+/.data/
+
 # next.js
 /.next/
 /out/
