@@ -5,7 +5,7 @@ import { SiteFooter } from "@/components/landing/site-footer";
 import { SiteHeader } from "@/components/landing/site-header";
 import { ReadingExperience } from "@/components/reading/reading-experience";
 import { isPaywallEnabled } from "@/lib/monetization";
-import { DEFAULT_SOCIAL_IMAGE } from "@/lib/seo/metadata";
+import { DEFAULT_SOCIAL_IMAGE, twitterCard } from "@/lib/seo/metadata";
 import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
 import { isReadingId, loadReading } from "@/server/readings/repository";
 import { getReadingView } from "@/server/readings/service";
@@ -49,13 +49,9 @@ export async function generateMetadata({
       locale: SITE_LOCALE,
       title: socialTitle,
       description,
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: socialTitle,
-      description,
       images: [DEFAULT_SOCIAL_IMAGE],
     },
+    twitter: twitterCard(socialTitle, description),
   };
 }
 

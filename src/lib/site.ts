@@ -6,12 +6,19 @@
 
 export const SITE_NAME = "K-Name Studio";
 
-/** 검색 결과 제목 뒤에 붙는 한 줄 소개 */
-export const SITE_TAGLINE = "Your Korean name, read from your Saju";
+/** 한 줄 소개 — 검색 결과 제목 뒤와 SNS 공유 카드 제목(og:title)에 쓴다 */
+export const SITE_TAGLINE = "Discover Your Korean Name & Saju";
 
-/** 검색 결과·공유 카드 설명 (160자 안팎) */
+/** 검색 결과 설명 (160자 안팎) */
 export const SITE_DESCRIPTION =
   "Get a meaningful Korean name crafted from your Saju (Four Pillars of Destiny), balanced with the five elements and written in Hanja — plus a Korean seal and name certificate.";
+
+/**
+ * SNS 공유 카드 설명 — 카카오톡·X·페이스북 미리보기에서 제목 아래 한두 줄.
+ * 무료 개방 중이면 lib/seo/metadata.ts가 "Free, no sign-up."을 덧붙인다.
+ */
+export const SITE_SOCIAL_DESCRIPTION =
+  "Your Korean name in Hangul & Hanja, read from your Saju birth chart — with your five elements, a Korean seal and a name card to share.";
 
 export const SITE_KEYWORDS = [
   "Korean name",
