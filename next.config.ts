@@ -13,8 +13,22 @@ const securityHeaders = [
   },
 ];
 
+/**
+ * 링크 미리보기 봇 — 이 봇에게는 메타 태그를 <head>에 넣은 채로 보낸다.
+ * Next.js는 동적 페이지(/reading/…)의 메타데이터를 스트리밍으로 본문 뒤쪽에 보내는데, 미리보기 봇은 <head>만 읽는다.
+ * 기본 목록(Next.js 16.3 html-bots.ts)에는 카카오톡 · 텔레그램 · 핀터레스트 · 다음이 없어 더한다
+ * (htmlLimitedBots를 지정하면 기본 목록을 덮어쓰므로 기본 목록도 함께 적는다).
+ */
+const NEXT_DEFAULT_PREVIEW_BOTS = String.raw`[\w-]+-Google|Google-[\w-]+|Chrome-Lighthouse|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview|Yeti|googleweblight`;
+const EXTRA_PREVIEW_BOTS = String.raw`kakaotalk-scrap|TelegramBot|Pinterestbot|Daumoa|Bluesky|Mastodon|Embedly|Iframely`;
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+
+  htmlLimitedBots: new RegExp(
+    `${NEXT_DEFAULT_PREVIEW_BOTS}|${EXTRA_PREVIEW_BOTS}`,
+    "i",
+  ),
 
   // 빌드할 때 코드에 박히는 값 — 비밀 값이 아니라 "켜져 있는지"만 브라우저에 알린다
   env: {
