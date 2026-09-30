@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { NameCardPanel } from "@/components/name-card/name-card-panel";
 import { SajuChartCard } from "@/components/saju/saju-chart";
 import { KoreanSeal } from "@/components/seal/korean-seal";
 import {
@@ -24,6 +25,8 @@ interface PremiumReadingProps {
   view: PremiumReadingView;
   /** 방금 결제를 마치고 열린 경우 — 감사 인사를 보여 주고 제목으로 포커스를 옮긴다 */
   justUnlocked: boolean;
+  /** 이름 카드의 공유 링크 · 주소 (서버의 getSiteUrl) */
+  siteUrl: string;
 }
 
 const SHAPE_LABELS: Record<SealShape, string> = {
@@ -42,10 +45,14 @@ function formatDate(isoTime: string): string {
 }
 
 /**
- * 전체 풀이: 사주 원국 → 추천 이름 3개 → 고른 이름의 풀이 · 도장 PNG · 증명서 PDF (광고 없음).
+ * 전체 풀이: 사주 원국 → 추천 이름 3개 → 고른 이름의 풀이 · 도장 PNG · 증명서 PDF → 이름 카드(이미지 저장 · 공유) (광고 없음).
  * 결제로 열린 풀이(access: "purchased")와 무료 개방 기간의 풀이(access: "open")가 같은 화면을 쓴다.
  */
-export function PremiumReading({ view, justUnlocked }: PremiumReadingProps) {
+export function PremiumReading({
+  view,
+  justUnlocked,
+  siteUrl,
+}: PremiumReadingProps) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [shape, setShape] = useState<SealShape>("square");
@@ -198,11 +205,22 @@ export function PremiumReading({ view, justUnlocked }: PremiumReadingProps) {
         </div>
       ) : null}
 
+      {selected ? (
+        <NameCardPanel
+          name={selected}
+          favorableElements={favorableElements}
+          saju={saju}
+          sealShape={shape}
+          sealFont={fontId}
+          siteUrl={siteUrl}
+        />
+      ) : null}
+
       <div className="flex flex-col gap-3 border-t border-ink/10 pt-8 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-ink-muted">
           Bookmark this page — your reading stays here until{" "}
           <time dateTime={view.expiresAt}>{formatDate(view.expiresAt)}</time>.
-          Download your seal and certificate to keep them for good.
+          Download your seal, certificate and name card to keep them for good.
         </p>
         <Link href="/#studio" className={secondaryButtonClass}>
           Create another name

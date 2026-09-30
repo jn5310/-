@@ -3,14 +3,19 @@ import { Noto_Sans_KR, Noto_Serif_KR } from "next/font/google";
 import type { ReactNode } from "react";
 
 import { Analytics } from "@/components/analytics/analytics";
-import { DEFAULT_SOCIAL_IMAGE, DEFAULT_TITLE } from "@/lib/seo/metadata";
+import {
+  DEFAULT_SOCIAL_IMAGE,
+  DEFAULT_TITLE,
+  SOCIAL_TITLE,
+  socialDescription,
+  twitterCard,
+} from "@/lib/seo/metadata";
 import {
   SITE_DESCRIPTION,
   SITE_KEYWORDS,
   SITE_LOCALE,
   SITE_NAME,
   SITE_THEME_COLOR,
-  TWITTER_HANDLE,
 } from "@/lib/site";
 import { getSiteUrl, isProductionSite } from "@/lib/site-url";
 
@@ -35,7 +40,8 @@ const bingVerification = process.env.BING_SITE_VERIFICATION?.trim();
 
 /**
  * 사이트 전체 기본 메타데이터. 페이지는 lib/seo/metadata.ts의 pageMetadata()로 제목·canonical·공유 카드를 채운다.
- * 공유 이미지는 app/opengraph-image.tsx가 만든다 (파일 규칙이라 openGraph.images보다 우선한다).
+ * 공유 이미지는 app/opengraph-image.tsx가 만들고, 주소는 모든 페이지의 openGraph.images에 직접 넣는다
+ * (Next.js는 같은 단계에 openGraph.images가 있으면 파일 규칙 이미지를 붙이지 않는다 — 주소가 한 가지로 유지된다).
  */
 export const metadata: Metadata = {
   metadataBase: siteUrl,
@@ -52,18 +58,11 @@ export const metadata: Metadata = {
     type: "website",
     siteName: SITE_NAME,
     locale: SITE_LOCALE,
-    title: DEFAULT_TITLE,
-    description: SITE_DESCRIPTION,
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: DEFAULT_TITLE,
-    description: SITE_DESCRIPTION,
+    title: SOCIAL_TITLE,
+    description: socialDescription(),
     images: [DEFAULT_SOCIAL_IMAGE],
-    ...(TWITTER_HANDLE
-      ? { site: TWITTER_HANDLE, creator: TWITTER_HANDLE }
-      : {}),
   },
+  twitter: twitterCard(SOCIAL_TITLE, socialDescription()),
   // Vercel 미리보기·개발 서버는 색인하지 않는다
   robots: isProductionSite()
     ? {

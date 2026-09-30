@@ -2,22 +2,24 @@ import { ImageResponse } from "next/og";
 
 import { isPaywallEnabled } from "@/lib/monetization";
 import { formatPrice, PREMIUM_OFFER } from "@/lib/pricing";
+import { OG_IMAGE_ALT } from "@/lib/seo/metadata";
 import { OG_FONT_FAMILY, loadOgFonts } from "@/server/og/fonts";
 
 /*
  * 공유 카드 이미지 (1200 × 630) — 카카오톡·X·페이스북·슬랙 미리보기와 검색 결과 썸네일에 쓰인다.
- * 빌드할 때 한 번 만들어 둔다. 사이트 전체가 이 이미지를 쓴다.
+ * 빌드할 때 한 번 만들어 둔다. 사이트 전체가 이 이미지를 쓴다 (lib/seo/metadata.ts의 DEFAULT_SOCIAL_IMAGE).
+ * 디자인을 바꾸면 metadata.ts의 OG_IMAGE_VERSION을 올린다 — SNS가 캐시한 옛 이미지를 다시 받아 가게.
  */
 
-export const alt = "K-Name Studio — the Korean name you were born for";
+export const alt = OG_IMAGE_ALT;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
 const COPY = {
   brand: "K-NAME STUDIO",
-  headlineTop: "The Korean name",
-  headlineBottom: "you were born for.",
-  features: "From your Saju · Meaningful Hanja · Korean seal",
+  headlineTop: "Discover your",
+  headlineBottom: "Korean name & Saju.",
+  features: "Hangul & Hanja · Saju five elements · Korean seal",
   // 첫 화면의 예시 이름 카드와 같은 이름 (홍길동 · 洪吉童)
   hangul: "홍길동",
   hanja: "洪吉童",
@@ -35,6 +37,15 @@ const COLORS = {
   ochre: "#82601f",
 } as const;
 
+/** 오방색 오행 — 이름 카드와 같은 색 */
+const ELEMENTS = [
+  { hanja: "木", fill: "#2f6f5e", text: COLORS.paper },
+  { hanja: "火", fill: "#b3372b", text: COLORS.paper },
+  { hanja: "土", fill: "#c9962b", text: COLORS.ink },
+  { hanja: "金", fill: "#e4ddcf", text: COLORS.ink },
+  { hanja: "水", fill: "#1e1b18", text: COLORS.paper },
+] as const;
+
 const SAEKDONG = [
   "#c8423a",
   "#e2b33c",
@@ -49,7 +60,9 @@ export default async function OpenGraphImage() {
   const offer = isPaywallEnabled()
     ? `Free preview · Full reading ${formatPrice(PREMIUM_OFFER)}`
     : "100% free · No sign-up";
-  const fonts = await loadOgFonts(Object.values(COPY).join(""));
+  const fonts = await loadOgFonts(
+    `${Object.values(COPY).join("")}${ELEMENTS.map((element) => element.hanja).join("")}`,
+  );
   // 한글 폰트를 받지 못했으면 한글·한자 없이 그린다 (네모 상자로 깨지지 않게)
   const korean = fonts.length > 0;
 
@@ -79,13 +92,13 @@ export default async function OpenGraphImage() {
             flex: 1,
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "40px 60px",
+            padding: "40px 56px",
             border: "1.5px solid rgba(30, 27, 24, 0.4)",
             backgroundImage:
               "radial-gradient(circle at 0% 0%, rgba(130, 96, 31, 0.16), rgba(246, 241, 231, 0) 60%)",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", width: 640 }}>
+          <div style={{ display: "flex", flexDirection: "column", width: 670 }}>
             <div style={{ display: "flex" }}>
               {SAEKDONG.map((color) => (
                 <div
@@ -115,10 +128,10 @@ export default async function OpenGraphImage() {
               style={{
                 display: "flex",
                 flexDirection: "column",
-                marginTop: 18,
-                fontSize: 66,
+                marginTop: 16,
+                fontSize: 60,
                 fontWeight: 700,
-                lineHeight: 1.1,
+                lineHeight: 1.12,
                 color: COLORS.ink,
               }}
             >
@@ -128,17 +141,45 @@ export default async function OpenGraphImage() {
             <div
               style={{
                 display: "flex",
-                marginTop: 26,
-                fontSize: 26,
+                marginTop: 22,
+                fontSize: 24,
                 color: COLORS.inkSoft,
               }}
             >
               {COPY.features}
             </div>
+            {korean ? (
+              <div style={{ display: "flex", marginTop: 24 }}>
+                {ELEMENTS.map((element) => (
+                  <div
+                    key={element.hanja}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      width: 44,
+                      height: 44,
+                      marginRight: 10,
+                      borderRadius: 999,
+                      backgroundColor: element.fill,
+                      color: element.text,
+                      fontSize: 24,
+                      fontWeight: 700,
+                      border:
+                        element.hanja === "金"
+                          ? "1.5px solid rgba(30, 27, 24, 0.3)"
+                          : `1.5px solid ${element.fill}`,
+                    }}
+                  >
+                    {element.hanja}
+                  </div>
+                ))}
+              </div>
+            ) : null}
             <div
               style={{
                 display: "flex",
-                marginTop: 30,
+                marginTop: 22,
                 alignSelf: "flex-start",
                 padding: "10px 22px",
                 borderRadius: 999,
@@ -157,7 +198,7 @@ export default async function OpenGraphImage() {
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              width: 330,
+              width: 300,
               padding: "34px 24px",
               borderRadius: 28,
               border: "1px solid rgba(30, 27, 24, 0.12)",
@@ -186,7 +227,7 @@ export default async function OpenGraphImage() {
                 style={{
                   display: "flex",
                   marginTop: 22,
-                  fontSize: 92,
+                  fontSize: 80,
                   fontWeight: 700,
                   color: COLORS.ink,
                 }}

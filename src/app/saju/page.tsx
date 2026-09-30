@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/landing/site-header";
 import { SajuStudio } from "@/components/saju/saju-studio";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import { pageMetadata } from "@/lib/seo/metadata";
+import { getSiteUrl } from "@/lib/site-url";
 
 /*
  * /saju — 사주 분석 (사주 전용 메뉴).
@@ -51,7 +52,7 @@ export default function SajuPage() {
             </div>
 
             <div className="mx-auto mt-12 max-w-5xl">
-              <SajuStudio />
+              <SajuStudio siteUrl={getSiteUrl().origin} />
             </div>
           </div>
         </section>

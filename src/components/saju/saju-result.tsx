@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Ref } from "react";
 
+import { ShareLinkActions } from "@/components/share/share-link-actions";
 import { Eyebrow } from "@/components/ui/eyebrow";
 import {
   primaryButtonClass,
@@ -8,6 +9,8 @@ import {
 } from "@/components/ui/styles";
 import { cn } from "@/lib/cn";
 import { FIVE_ELEMENT_META } from "@/lib/saju/five-elements";
+import { buildShareUrl, sajuShareText } from "@/lib/share";
+import { SITE_NAME } from "@/lib/site";
 import type {
   DayMasterStrength,
   ElementInsight,
@@ -44,12 +47,15 @@ interface SajuResultViewProps {
   result: SajuResult;
   /** 결과가 나오면 제목으로 포커스를 옮긴다 (스크린리더에 화면이 바뀌었음을 알린다) */
   headingRef: Ref<HTMLHeadingElement>;
+  /** 공유 링크의 사이트 주소 */
+  siteUrl: string;
   onReset: () => void;
 }
 
 export function SajuResultView({
   result,
   headingRef,
+  siteUrl,
   onReset,
 }: SajuResultViewProps) {
   const { reading, analysis } = result;
@@ -253,6 +259,29 @@ export function SajuResultView({
           ) : null}
         </div>
       </section>
+
+      {/* 공유 — 링크는 사주 분석 첫 화면 (생년월일은 보내지 않는다) */}
+      <div className="flex flex-col gap-5 rounded-2xl border border-ink/10 bg-white/70 p-6 md:flex-row md:items-center md:justify-between">
+        <div>
+          <p className="font-serif text-xl font-semibold text-ink">
+            Share your day master{" "}
+            <span lang="ko" className="text-vermilion">
+              {dayMaster.hanja}
+            </span>
+          </p>
+          <p className="mt-1 max-w-xl text-sm leading-relaxed text-ink-soft">
+            Send the link to friends — they can read their own Four Pillars in a
+            few seconds. Your birth details stay on this screen.
+          </p>
+        </div>
+        <ShareLinkActions
+          title={`My Saju reading — ${SITE_NAME}`}
+          text={sajuShareText(dayMaster)}
+          url={buildShareUrl(siteUrl, "saju_reading", "/saju")}
+          contentType="saju_reading"
+          className="shrink-0"
+        />
+      </div>
 
       {/* 이름 짓기로 잇기 */}
       <div className="flex flex-col items-start gap-4 rounded-[2rem] border border-ink/10 bg-hanji-deep/60 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">

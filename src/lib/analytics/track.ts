@@ -6,6 +6,7 @@ import { GA_MEASUREMENT_ID } from "./config";
  * GA4 이벤트 — 전환 퍼널:
  *   name_form_start → name_form_submit → generate_lead(풀이 생성)
  *   → view_item(무료 결과 + 결제 제안) → begin_checkout(결제 버튼) → purchase(결제 완료)
+ * 바이럴: name_card_download(이름 카드 저장) · share(공유 · 링크 복사)
  *
  * GA가 꺼져 있거나 광고 차단기에 막혀도 아무 일도 일어나지 않는다 (앱 동작에 영향 없음).
  * 이름·생년월일 같은 개인 정보는 이벤트에 넣지 않는다 (GA 약관 위반).
@@ -37,6 +38,10 @@ export const ANALYTICS_EVENTS = {
   certificateDownload: "certificate_download",
   /** 사주 분석(사주 전용 메뉴) 결과를 봤다 */
   sajuReading: "saju_reading",
+  /** 공유 — GA4 권장 이벤트 share (method · content_type · item_id). 키 이벤트로 표시해 바이럴을 잰다 */
+  share: "share",
+  /** 이름 카드 이미지(PNG) 저장 */
+  nameCardDownload: "name_card_download",
 } as const;
 
 export type AnalyticsEventName =

@@ -24,6 +24,8 @@ interface ReadingExperienceProps {
   /** Stripe에서 돌아온 경우: success_url · cancel_url */
   checkout: "success" | "cancelled" | null;
   sessionId: string | null;
+  /** 공유 링크의 사이트 주소 (서버의 getSiteUrl) */
+  siteUrl: string;
 }
 
 /**
@@ -34,6 +36,7 @@ export function ReadingExperience({
   initialView,
   checkout,
   sessionId,
+  siteUrl,
 }: ReadingExperienceProps) {
   const [view, setView] = useState(initialView);
   const [justUnlocked, setJustUnlocked] = useState(
@@ -106,7 +109,13 @@ export function ReadingExperience({
   }, [isWaitingForPayment, view.readingId, sessionId]);
 
   if (view.tier === "premium") {
-    return <PremiumReading view={view} justUnlocked={justUnlocked} />;
+    return (
+      <PremiumReading
+        view={view}
+        justUnlocked={justUnlocked}
+        siteUrl={siteUrl}
+      />
+    );
   }
 
   let notice: FreeReadingNotice | null = null;

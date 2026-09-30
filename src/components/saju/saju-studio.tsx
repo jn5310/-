@@ -12,7 +12,12 @@ import { SajuResultView } from "./saju-result";
  * 사주 분석: 입력 폼 → 결과. 결과를 보는 동안에도 입력값을 기억해 두어 "다시 보기"에서 고쳐 쓸 수 있다.
  * 결과는 서버에 저장하지 않는다 (새로 고침하면 다시 입력한다).
  */
-export function SajuStudio() {
+export function SajuStudio({
+  siteUrl,
+}: {
+  /** 공유 링크의 사이트 주소 (서버의 getSiteUrl) */
+  siteUrl: string;
+}) {
   const [result, setResult] = useState<SajuResult | null>(null);
   const [values, setValues] = useState<BirthFormValues | undefined>();
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -40,6 +45,7 @@ export function SajuStudio() {
       <SajuResultView
         result={result}
         headingRef={headingRef}
+        siteUrl={siteUrl}
         onReset={() => setResult(null)}
       />
     );
