@@ -7,6 +7,7 @@ import { ReadingExperience } from "@/components/reading/reading-experience";
 import { isPaywallEnabled } from "@/lib/monetization";
 import { DEFAULT_SOCIAL_IMAGE, twitterCard } from "@/lib/seo/metadata";
 import { SITE_LOCALE, SITE_NAME } from "@/lib/site";
+import { getSiteUrl } from "@/lib/site-url";
 import { isReadingId, loadReading } from "@/server/readings/repository";
 import { getReadingView } from "@/server/readings/service";
 
@@ -96,6 +97,7 @@ export default async function ReadingPage({
             initialView={view}
             checkout={checkout}
             sessionId={sessionId}
+            siteUrl={getSiteUrl().origin}
           />
         </div>
       </main>
