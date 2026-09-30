@@ -10,6 +10,7 @@ import type {
   SajuReading,
 } from "@/types/saju";
 
+import { DAY_MASTER_IMAGES } from "./day-master";
 import { FIVE_ELEMENT_META, FIVE_ELEMENTS } from "./five-elements";
 import {
   branchIndexOf,
@@ -123,15 +124,10 @@ const ELEMENT_TEXT: Record<FiveElement, ElementText> = {
   },
 };
 
-type StemText = Pick<
-  DayMasterProfile,
-  "image" | "imageKo" | "summary" | "strengths" | "challenges"
->;
+type StemText = Pick<DayMasterProfile, "summary" | "strengths" | "challenges">;
 
 const DAY_MASTER_TEXT: Record<HeavenlyStem, StemText> = {
   gap: {
-    image: "The Great Tree",
-    imageKo: "큰 나무",
     summary:
       "Upright and forward-looking, you grow steadily toward your goals and give shelter to the people around you. Others see you as principled and dependable — a natural pillar in any group.",
     strengths: [
@@ -145,8 +141,6 @@ const DAY_MASTER_TEXT: Record<HeavenlyStem, StemText> = {
     ],
   },
   eul: {
-    image: "The Flower & Vine",
-    imageKo: "화초 · 덩굴",
     summary:
       "Graceful and adaptable, you find a way around obstacles the way a vine finds the light. You connect people easily and bring charm and creativity wherever you go.",
     strengths: [
@@ -160,8 +154,6 @@ const DAY_MASTER_TEXT: Record<HeavenlyStem, StemText> = {
     ],
   },
   byeong: {
-    image: "The Sun",
-    imageKo: "태양",
     summary:
       "Warm, generous and hard to ignore, you light up the people around you. You speak your mind, love to share and lift others with your optimism.",
     strengths: [
@@ -175,8 +167,6 @@ const DAY_MASTER_TEXT: Record<HeavenlyStem, StemText> = {
     ],
   },
   jeong: {
-    image: "The Candle",
-    imageKo: "촛불 · 등불",
     summary:
       "Like a candle in a dark room, you give off a steady, focused warmth. You notice what others miss, care deeply and inspire quietly rather than loudly.",
     strengths: [
@@ -187,8 +177,6 @@ const DAY_MASTER_TEXT: Record<HeavenlyStem, StemText> = {
     challenges: ["Sensitive to criticism", "Prone to overthinking"],
   },
   mu: {
-    image: "The Mountain",
-    imageKo: "큰 산",
     summary:
       "Solid and calm, you are the mountain others lean on. You keep your word, move at your own pace and stay steady when everything around you shifts.",
     strengths: [
@@ -199,8 +187,6 @@ const DAY_MASTER_TEXT: Record<HeavenlyStem, StemText> = {
     challenges: ["Slow to embrace change", "Keeps feelings to yourself"],
   },
   gi: {
-    image: "The Garden Soil",
-    imageKo: "기름진 땅",
     summary:
       "Nurturing and practical, you help people and ideas grow like rich soil in a garden. You are resourceful, detail-minded and quietly generous.",
     strengths: [
@@ -211,8 +197,6 @@ const DAY_MASTER_TEXT: Record<HeavenlyStem, StemText> = {
     challenges: ["Worries over details", "May put everyone else first"],
   },
   gyeong: {
-    image: "The Sword",
-    imageKo: "쇠 · 칼",
     summary:
       "Bold and decisive, you cut through confusion and act on your convictions. You value justice and loyalty, and you rise to a challenge.",
     strengths: [
@@ -223,8 +207,6 @@ const DAY_MASTER_TEXT: Record<HeavenlyStem, StemText> = {
     challenges: ["Can come across as harsh", "Hard-headed in disagreements"],
   },
   sin: {
-    image: "The Jewel",
-    imageKo: "보석",
     summary:
       "Refined and sharp-minded, you shine through quality and detail, like a polished gem. You have high standards, a strong sense of beauty and a quick wit.",
     strengths: [
@@ -238,8 +220,6 @@ const DAY_MASTER_TEXT: Record<HeavenlyStem, StemText> = {
     ],
   },
   im: {
-    image: "The Ocean",
-    imageKo: "큰 바다",
     summary:
       "Expansive and free-spirited, you move like a great river — full of ideas, curious about the world and able to find a way through anything.",
     strengths: [
@@ -250,8 +230,6 @@ const DAY_MASTER_TEXT: Record<HeavenlyStem, StemText> = {
     challenges: ["Restless with routine", "Can be hard to pin down"],
   },
   gye: {
-    image: "The Rain & Dew",
-    imageKo: "비 · 이슬",
     summary:
       "Gentle and intuitive, you nourish others quietly, like rain that brings a garden to life. You read people well and have a rich inner world.",
     strengths: [
@@ -399,7 +377,10 @@ export function analyzeSaju(reading: SajuReading): SajuAnalysis {
   const characters = chartCharacters(reading);
   const total = characters.length;
   const { dayMaster } = reading;
-  const stemText = DAY_MASTER_TEXT[dayMaster.stem];
+  const stemText = {
+    ...DAY_MASTER_IMAGES[dayMaster.stem],
+    ...DAY_MASTER_TEXT[dayMaster.stem],
+  };
   const stem = HEAVENLY_STEMS[stemIndexOf(dayMaster.stem)];
 
   const elements: ElementInsight[] = FIVE_ELEMENTS.map((element) => {

@@ -1,5 +1,6 @@
 import { Font } from "@react-pdf/renderer";
 
+import { fetchSubsetFont } from "@/lib/fonts/subset-client";
 import { hashString } from "@/lib/seal/random";
 
 /*
@@ -17,7 +18,6 @@ export interface CertificateFontFamilies {
 
 const WEIGHTS = [400, 700] as const;
 const FAMILIES = ["serif", "sans"] as const;
-const FETCH_TIMEOUT_MS = 20_000;
 
 const loaded = new Map<string, Promise<CertificateFontFamilies>>();
 
@@ -50,7 +50,7 @@ async function registerFonts(
       Promise.all(
         WEIGHTS.map(async (fontWeight) => ({
           fontWeight,
-          src: await fetchSubsetDataUrl(family, fontWeight, characters),
+          src: (await fetchSubsetFont(family, fontWeight, characters)).dataUrl,
         })),
       ),
     ),
@@ -60,38 +60,6 @@ async function registerFonts(
   Font.register({ family: families.sans, fonts: sources[1] });
   Font.registerHyphenationCallback(breakWords);
   return families;
-}
-
-async function fetchSubsetDataUrl(
-  family: (typeof FAMILIES)[number],
-  weight: number,
-  characters: string,
-): Promise<string> {
-  const params = new URLSearchParams({
-    family,
-    weight: String(weight),
-    text: characters,
-  });
-  const response = await fetch(`/api/fonts/subset?${params}`, {
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
-  if (!response.ok) {
-    throw new Error(
-      `Font subset ${family} ${weight} failed: HTTP ${response.status}`,
-    );
-  }
-  const type = response.headers.get("content-type") ?? "font/ttf";
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  return `data:${type};base64,${toBase64(bytes)}`;
-}
-
-function toBase64(bytes: Uint8Array): string {
-  let binary = "";
-  const chunk = 0x8000;
-  for (let index = 0; index < bytes.length; index += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(index, index + chunk));
-  }
-  return btoa(binary);
 }
 
 /** 한글·한자·가나 등 띄어쓰기 없이도 줄을 바꿀 수 있는 글자 */
